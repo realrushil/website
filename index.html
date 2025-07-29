@@ -85,8 +85,6 @@
         const mouseWorldPos = new THREE.Vector3();
         const raycaster = new THREE.Raycaster();
         let mouseDown = false;
-        let mouseTrail = [];
-        const maxTrailPoints = 20; // Changed from maxTrailLength
 
         // Camera setup
         camera.position.set(0, 0, 50);
@@ -452,43 +450,6 @@
             connectionPool.push(connection);
         }
 
-        // Mouse trail system - optimized
-        const trailGeometry = new THREE.BufferGeometry();
-        const trailPositions = new Float32Array(maxTrailPoints * 3);
-        const trailAlphas = new Float32Array(maxTrailPoints);
-        
-        trailGeometry.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
-        trailGeometry.setAttribute('alpha', new THREE.BufferAttribute(trailAlphas, 1));
-        
-        const trailMaterial = new THREE.ShaderMaterial({
-            uniforms: {
-                time: { value: 0 }
-            },
-            vertexShader: `
-                attribute float alpha;
-                varying float vAlpha;
-                void main() {
-                    vAlpha = alpha;
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-                    gl_PointSize = 8.0 * alpha;
-                }
-            `,
-            fragmentShader: `
-                varying float vAlpha;
-                void main() {
-                    float dist = length(gl_PointCoord - vec2(0.5));
-                    if (dist > 0.5) discard;
-                    float alpha = (1.0 - dist * 2.0) * vAlpha;
-                    gl_FragColor = vec4(0.6, 0.9, 1.0, alpha);
-                }
-            `,
-            transparent: true,
-            blending: THREE.AdditiveBlending
-        });
-
-        const trailPoints = new THREE.Points(trailGeometry, trailMaterial);
-        scene.add(trailPoints);
-
         // Nebula background effect
         const nebulaGeometry = new THREE.PlaneGeometry(150, 150, 32, 32); // Reduced size and complexity
         const nebulaMaterial = new THREE.ShaderMaterial({
@@ -539,16 +500,6 @@
         window.addEventListener('mousemove', (event) => {
             targetMouse.x = (event.clientX / window.innerWidth) * 2 - 1;
             targetMouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-            
-            // Add to mouse trail
-            if (mouseTrail.length > maxTrailPoints) {
-                mouseTrail.shift();
-            }
-            mouseTrail.push({
-                x: (event.clientX / window.innerWidth) * 2 - 1,
-                y: -(event.clientY / window.innerHeight) * 2 + 1,
-                time: Date.now()
-            });
         });
 
         window.addEventListener('mousedown', () => {
@@ -632,37 +583,8 @@
                 }
             }
 
-            // Update mouse trail efficiently
-            if (mouseTrail.length > 1) {
-                const trailLength = Math.min(mouseTrail.length, maxTrailPoints);
-                
-                for (let i = 0; i < trailLength; i++) {
-                    const point = mouseTrail[i];
-                    const index = i * 3;
-                    
-                    trailPositions[index] = point.x * 40;
-                    trailPositions[index + 1] = point.y * 30;
-                    trailPositions[index + 2] = 10;
-                    
-                    trailAlphas[i] = i / trailLength;
-                }
-                
-                // Clear unused positions
-                for (let i = trailLength; i < maxTrailPoints; i++) {
-                    const index = i * 3;
-                    trailPositions[index] = 0;
-                    trailPositions[index + 1] = 0;
-                    trailPositions[index + 2] = 0;
-                    trailAlphas[i] = 0;
-                }
-                
-                trailGeometry.attributes.position.needsUpdate = true;
-                trailGeometry.attributes.alpha.needsUpdate = true;
-            }
-
             // Update shader uniforms
             connectionMaterial.uniforms.time.value = time;
-            trailMaterial.uniforms.time.value = time;
             nebulaMaterial.uniforms.time.value = time;
             nebulaMaterial.uniforms.mouse.value = mouse;
             constellationLineMaterial.uniforms.time.value = time;
@@ -706,8 +628,6 @@
             });
             
             // Dispose of other geometries and materials
-            trailGeometry.dispose();
-            trailMaterial.dispose();
             connectionMaterial.dispose();
             nebulaMaterial.dispose();
             nebulaGeometry.dispose();
