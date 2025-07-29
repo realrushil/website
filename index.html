@@ -1,52 +1,746 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Defines the character set for the page -->
     <meta charset="UTF-8">
-    
-    <!-- Ensures the page is responsive and scales correctly on all devices -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <!-- The title that appears in the browser tab -->
     <title>Rushil Saraf</title>
-    
     <style>
-        /* Basic styling for the page */
-        body {
-            /* Use a modern, system-default font stack for broad compatibility */
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-            
-            /* Use Flexbox to center content both horizontally and vertically */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            
-            /* Make the body take up the full height of the browser window */
-            height: 100vh;
-            
-            /* Remove default margin to prevent scrollbars */
+        * {
             margin: 0;
-            
-            /* A light grey background color */
-            background-color: #f7f7f7;
-            
-            /* A dark grey for the text color for good readability */
-            color: #333;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        h1 {
-            /* A large font size for the name */
+        body {
+            overflow: hidden;
+            background: #000;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #name-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
             font-size: 4rem;
-            
-            /* A lighter font weight for a more modern look */
             font-weight: 300;
+            text-align: center;
+            z-index: 100;
+            pointer-events: none;
+            text-shadow: 0 0 30px rgba(100, 200, 255, 0.8);
+            transition: all 0.3s ease;
+            mix-blend-mode: screen;
+        }
+
+        #info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9rem;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 1.2rem;
+            z-index: 50;
         }
     </style>
 </head>
 <body>
+    <div id="container">
+        <div class="loading">Loading Interactive Experience...</div>
+        <div id="name-overlay">Rushil Saraf</div>
+        <div id="info">Move mouse to explore • Click and drag to interact • Scroll to zoom</div>
+    </div>
 
-    <!-- The main heading that displays your name -->
-    <h1>Rushil Saraf</h1>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x000000, 1);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.getElementById('container').appendChild(renderer.domElement);
 
+        // Mouse and interaction tracking
+        const mouse = new THREE.Vector2();
+        const targetMouse = new THREE.Vector2();
+        const mouseWorldPos = new THREE.Vector3();
+        const raycaster = new THREE.Raycaster();
+        let mouseDown = false;
+        let mouseTrail = [];
+        const maxTrailPoints = 20; // Changed from maxTrailLength
+
+        // Camera setup
+        camera.position.set(0, 0, 50);
+        const cameraTarget = new THREE.Vector3();
+
+        // Lighting setup
+        const ambientLight = new THREE.AmbientLight(0x222244, 0.3);
+        scene.add(ambientLight);
+
+        const pointLight = new THREE.PointLight(0x64c8ff, 2, 100);
+        pointLight.position.set(0, 0, 30);
+        pointLight.castShadow = true;
+        scene.add(pointLight);
+
+        // Interactive particle network
+        const particleCount = 100; // Reduced from 200
+        const connectionDistance = 12; // Reduced from 15
+        const maxConnections = 150; // Limit total connections
+        const particles = [];
+        
+        // Connection pool for reusing line objects
+        const connectionPool = [];
+        const activeConnections = [];
+
+        class InteractiveParticle {
+            constructor() {
+                this.position = new THREE.Vector3(
+                    (Math.random() - 0.5) * 80,
+                    (Math.random() - 0.5) * 60,
+                    (Math.random() - 0.5) * 40
+                );
+                this.velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.2,
+                    (Math.random() - 0.5) * 0.2,
+                    (Math.random() - 0.5) * 0.1
+                );
+                this.originalPosition = this.position.clone();
+                this.mouseInfluence = 0;
+                this.connections = [];
+                
+                // Create visual particle
+                const geometry = new THREE.SphereGeometry(0.3, 6, 6); // Reduced geometry complexity
+                const material = new THREE.MeshPhongMaterial({
+                    color: 0x64c8ff,
+                    emissive: 0x001122,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                this.mesh = new THREE.Mesh(geometry, material);
+                this.mesh.position.copy(this.position);
+                this.mesh.castShadow = true;
+                scene.add(this.mesh);
+            }
+
+            update(mousePos, time) {
+                // Mouse attraction/repulsion
+                const mouseDistance = this.position.distanceTo(mousePos);
+                if (mouseDistance < 20) {
+                    const direction = new THREE.Vector3().subVectors(this.position, mousePos).normalize();
+                    const force = Math.max(0, 1 - mouseDistance / 20);
+                    this.mouseInfluence = force;
+                    
+                    if (mouseDown) {
+                        // Attract when mouse is pressed
+                        this.velocity.sub(direction.multiplyScalar(force * 0.3));
+                    } else {
+                        // Repel when just hovering
+                        this.velocity.add(direction.multiplyScalar(force * 0.2));
+                    }
+                } else {
+                    this.mouseInfluence *= 0.95;
+                }
+
+                // Gentle drift back to original position
+                const restoreForce = new THREE.Vector3().subVectors(this.originalPosition, this.position);
+                this.velocity.add(restoreForce.multiplyScalar(0.001));
+
+                // Apply velocity with damping
+                this.velocity.multiplyScalar(0.98);
+                this.position.add(this.velocity);
+
+                // Floating animation
+                this.position.y += Math.sin(time * 0.001 + this.originalPosition.x * 0.01) * 0.1;
+                this.position.x += Math.cos(time * 0.0008 + this.originalPosition.z * 0.01) * 0.05;
+
+                // Update visual
+                this.mesh.position.copy(this.position);
+                
+                // Dynamic material properties based on mouse influence
+                const intensity = 0.3 + this.mouseInfluence * 0.7;
+                this.mesh.material.emissive.setRGB(
+                    0.1 * intensity,
+                    0.2 * intensity,
+                    0.4 * intensity
+                );
+                this.mesh.scale.setScalar(0.5 + this.mouseInfluence * 1.5);
+            }
+            
+            dispose() {
+                if (this.mesh) {
+                    scene.remove(this.mesh);
+                    this.mesh.geometry.dispose();
+                    this.mesh.material.dispose();
+                }
+            }
+        }
+
+        // Create particles
+        for (let i = 0; i < particleCount; i++) {
+            particles.push(new InteractiveParticle());
+        }
+
+        // Star field system
+        const backgroundStars = [];
+        const constellationStars = [];
+        const starCount = 800;
+        const constellationCount = 50;
+
+        class BackgroundStar {
+            constructor() {
+                this.position = new THREE.Vector3(
+                    (Math.random() - 0.5) * 300,
+                    (Math.random() - 0.5) * 200,
+                    (Math.random() - 0.5) * 100
+                );
+                this.baseIntensity = Math.random() * 0.8 + 0.2;
+                this.twinkleSpeed = Math.random() * 0.02 + 0.01;
+                this.twinkleOffset = Math.random() * Math.PI * 2;
+                
+                // Create star geometry
+                const geometry = new THREE.SphereGeometry(0.1 + Math.random() * 0.2, 4, 4);
+                const material = new THREE.MeshBasicMaterial({
+                    color: this.getStarColor(),
+                    transparent: true,
+                    opacity: this.baseIntensity
+                });
+                
+                this.mesh = new THREE.Mesh(geometry, material);
+                this.mesh.position.copy(this.position);
+                scene.add(this.mesh);
+            }
+            
+            getStarColor() {
+                const colors = [
+                    0xffffff, 0xfff8e7, 0xe6f3ff, 0xffe6f0, 0xf0f8ff, 0xfff0f5
+                ];
+                return colors[Math.floor(Math.random() * colors.length)];
+            }
+            
+            update(time) {
+                const twinkle = Math.sin(time * this.twinkleSpeed + this.twinkleOffset) * 0.3 + 0.7;
+                this.mesh.material.opacity = this.baseIntensity * twinkle;
+            }
+            
+            dispose() {
+                if (this.mesh) {
+                    scene.remove(this.mesh);
+                    this.mesh.geometry.dispose();
+                    this.mesh.material.dispose();
+                }
+            }
+        }
+
+        class ConstellationStar {
+            constructor(x, y, z, size = 1) {
+                this.position = new THREE.Vector3(x, y, z);
+                this.baseIntensity = 0.8 + Math.random() * 0.2;
+                this.pulseSpeed = Math.random() * 0.01 + 0.005;
+                this.pulseOffset = Math.random() * Math.PI * 2;
+                
+                // Larger, brighter stars for constellations
+                const geometry = new THREE.SphereGeometry(0.3 * size, 6, 6);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0x64c8ff,
+                    transparent: true,
+                    opacity: this.baseIntensity
+                });
+                
+                this.mesh = new THREE.Mesh(geometry, material);
+                this.mesh.position.copy(this.position);
+                scene.add(this.mesh);
+            }
+            
+            update(time) {
+                const pulse = Math.sin(time * this.pulseSpeed + this.pulseOffset) * 0.2 + 0.8;
+                this.mesh.material.opacity = this.baseIntensity * pulse;
+                this.mesh.scale.setScalar(0.8 + pulse * 0.4);
+            }
+            
+            dispose() {
+                if (this.mesh) {
+                    scene.remove(this.mesh);
+                    this.mesh.geometry.dispose();
+                    this.mesh.material.dispose();
+                }
+            }
+        }
+
+        // Create background stars
+        for (let i = 0; i < starCount; i++) {
+            backgroundStars.push(new BackgroundStar());
+        }
+
+        // Create constellation patterns
+        const constellationPatterns = [
+            // Big Dipper
+            [
+                [-30, 25, -30], [-25, 28, -30], [-20, 26, -30], [-15, 24, -30],
+                [-12, 20, -30], [-8, 18, -30], [-5, 22, -30]
+            ],
+            // Orion
+            [
+                [40, 15, -40], [42, 10, -40], [45, 5, -40], [38, 0, -40],
+                [35, -5, -40], [41, -8, -40], [44, -12, -40]
+            ],
+            // Cassiopeia
+            [
+                [-40, -20, -50], [-35, -18, -50], [-30, -22, -50], 
+                [-25, -19, -50], [-20, -21, -50]
+            ],
+            // Custom constellation 1
+            [
+                [60, -10, -20], [65, -8, -20], [62, -15, -20], [58, -12, -20]
+            ],
+            // Custom constellation 2
+            [
+                [-60, 10, -35], [-55, 12, -35], [-50, 8, -35], [-52, 15, -35], [-48, 10, -35]
+            ],
+            // Leo (left side)
+            [
+                [-45, 5, -25], [-40, 8, -25], [-35, 6, -25], [-32, 2, -25], 
+                [-28, 0, -25], [-25, 4, -25], [-22, 7, -25]
+            ],
+            // Gemini (right side)
+            [
+                [75, 20, -45], [78, 18, -45], [80, 15, -45], [82, 12, -45],
+                [77, 25, -45], [80, 23, -45], [83, 20, -45], [85, 18, -45]
+            ],
+            // Taurus (right side)
+            [
+                [70, -25, -35], [75, -23, -35], [78, -28, -35], [72, -30, -35], 
+                [68, -27, -35], [65, -25, -35]
+            ],
+            // Custom constellation 3 (left side - arrow pattern)
+            [
+                [-75, -5, -30], [-70, -3, -30], [-65, -1, -30], [-62, 2, -30], [-58, 0, -30]
+            ],
+            // Custom constellation 4 (right side - crown pattern)
+            [
+                [85, 5, -25], [88, 8, -25], [91, 6, -25], [94, 9, -25], 
+                [97, 7, -25], [92, 12, -25]
+            ],
+            // Draco (left side - dragon)
+            [
+                [-65, 30, -40], [-62, 28, -40], [-58, 25, -40], [-55, 22, -40], 
+                [-52, 24, -40], [-48, 26, -40], [-45, 28, -40]
+            ]
+        ];
+
+        constellationPatterns.forEach(pattern => {
+            pattern.forEach((pos, index) => {
+                const size = index === 0 ? 1.5 : 1; // Make first star of each constellation larger
+                constellationStars.push(new ConstellationStar(pos[0], pos[1], pos[2], size));
+            });
+        });
+
+        // Create constellation connection lines
+        const constellationLines = [];
+        const constellationLineMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                time: { value: 0 },
+                opacity: { value: 0.3 }
+            },
+            vertexShader: `
+                varying vec3 vPosition;
+                void main() {
+                    vPosition = position;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform float time;
+                uniform float opacity;
+                varying vec3 vPosition;
+                void main() {
+                    float alpha = opacity * (0.5 + 0.5 * sin(time * 0.003 + vPosition.x * 0.05));
+                    gl_FragColor = vec4(0.6, 0.9, 1.0, alpha * 0.4);
+                }
+            `,
+            transparent: true,
+            blending: THREE.AdditiveBlending
+        });
+
+        // Connect constellation stars
+        let starIndex = 0;
+        constellationPatterns.forEach(pattern => {
+            for (let i = 0; i < pattern.length - 1; i++) {
+                const geometry = new THREE.BufferGeometry();
+                const positions = new Float32Array(6);
+                
+                positions[0] = pattern[i][0];
+                positions[1] = pattern[i][1];
+                positions[2] = pattern[i][2];
+                positions[3] = pattern[i + 1][0];
+                positions[4] = pattern[i + 1][1];
+                positions[5] = pattern[i + 1][2];
+                
+                geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                
+                const line = new THREE.Line(geometry, constellationLineMaterial);
+                constellationLines.push(line);
+                scene.add(line);
+            }
+            starIndex += pattern.length;
+        });
+
+        // Connection lines material
+        const connectionMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                time: { value: 0 },
+                opacity: { value: 1.0 }
+            },
+            vertexShader: `
+                varying vec3 vPosition;
+                void main() {
+                    vPosition = position;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform float time;
+                uniform float opacity;
+                varying vec3 vPosition;
+                void main() {
+                    float alpha = opacity * (0.3 + 0.7 * sin(time * 0.005 + vPosition.x * 0.1));
+                    gl_FragColor = vec4(0.4, 0.8, 1.0, alpha * 0.6);
+                }
+            `,
+            transparent: true,
+            blending: THREE.AdditiveBlending
+        });
+
+        // Create connection pool
+        function createConnection() {
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(6);
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const line = new THREE.Line(geometry, connectionMaterial);
+            return line;
+        }
+
+        // Initialize connection pool
+        for (let i = 0; i < maxConnections; i++) {
+            connectionPool.push(createConnection());
+        }
+
+        function getConnection() {
+            return connectionPool.pop() || createConnection();
+        }
+
+        function returnConnection(connection) {
+            scene.remove(connection);
+            connectionPool.push(connection);
+        }
+
+        // Mouse trail system - optimized
+        const trailGeometry = new THREE.BufferGeometry();
+        const trailPositions = new Float32Array(maxTrailPoints * 3);
+        const trailAlphas = new Float32Array(maxTrailPoints);
+        
+        trailGeometry.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
+        trailGeometry.setAttribute('alpha', new THREE.BufferAttribute(trailAlphas, 1));
+        
+        const trailMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                time: { value: 0 }
+            },
+            vertexShader: `
+                attribute float alpha;
+                varying float vAlpha;
+                void main() {
+                    vAlpha = alpha;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    gl_PointSize = 8.0 * alpha;
+                }
+            `,
+            fragmentShader: `
+                varying float vAlpha;
+                void main() {
+                    float dist = length(gl_PointCoord - vec2(0.5));
+                    if (dist > 0.5) discard;
+                    float alpha = (1.0 - dist * 2.0) * vAlpha;
+                    gl_FragColor = vec4(0.6, 0.9, 1.0, alpha);
+                }
+            `,
+            transparent: true,
+            blending: THREE.AdditiveBlending
+        });
+
+        const trailPoints = new THREE.Points(trailGeometry, trailMaterial);
+        scene.add(trailPoints);
+
+        // Nebula background effect
+        const nebulaGeometry = new THREE.PlaneGeometry(150, 150, 32, 32); // Reduced size and complexity
+        const nebulaMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                time: { value: 0 },
+                mouse: { value: new THREE.Vector2() }
+            },
+            vertexShader: `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform float time;
+                uniform vec2 mouse;
+                varying vec2 vUv;
+                
+                float noise(vec2 p) {
+                    return sin(p.x * 8.0 + time * 0.0008) * sin(p.y * 6.0 + time * 0.0006) * 0.5 + 0.5; // Reduced complexity
+                }
+                
+                void main() {
+                    vec2 uv = vUv - 0.5;
+                    float dist = length(uv - mouse * 0.3); // Reduced mouse influence
+                    
+                    float n1 = noise(uv * 1.5); // Reduced noise complexity
+                    float n2 = noise(uv * 3.0 + vec2(100.0));
+                    
+                    float combined = n1 * 0.6 + n2 * 0.4; // Simplified combination
+                    float intensity = combined * (1.0 - dist * 0.4);
+                    
+                    vec3 color = vec3(0.08, 0.15, 0.3) * intensity * 0.25; // Reduced intensity
+                    gl_FragColor = vec4(color, intensity * 0.4);
+                }
+            `,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+
+        const nebula = new THREE.Mesh(nebulaGeometry, nebulaMaterial);
+        nebula.position.z = -20;
+        scene.add(nebula);
+
+        // Event listeners
+        
+        window.addEventListener('mousemove', (event) => {
+            targetMouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            targetMouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            // Add to mouse trail
+            if (mouseTrail.length > maxTrailPoints) {
+                mouseTrail.shift();
+            }
+            mouseTrail.push({
+                x: (event.clientX / window.innerWidth) * 2 - 1,
+                y: -(event.clientY / window.innerHeight) * 2 + 1,
+                time: Date.now()
+            });
+        });
+
+        window.addEventListener('mousedown', () => {
+            mouseDown = true;
+        });
+
+        window.addEventListener('mouseup', () => {
+            mouseDown = false;
+        });
+
+        window.addEventListener('wheel', (event) => {
+            camera.position.z += event.deltaY * 0.05;
+            camera.position.z = Math.max(20, Math.min(100, camera.position.z));
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Animation loop with frame rate limiting
+        let time = 0;
+        let lastTime = 0;
+        const targetFPS = 60;
+        const frameInterval = 1000 / targetFPS;
+        
+        function animate(currentTime) {
+            requestAnimationFrame(animate);
+            
+            // Frame rate limiting
+            if (currentTime - lastTime < frameInterval) {
+                return;
+            }
+            lastTime = currentTime;
+            time += 1;
+
+            // Smooth mouse following
+            mouse.lerp(targetMouse, 0.1);
+            
+            // Update mouse world position
+            raycaster.setFromCamera(mouse, camera);
+            const distance = -camera.position.z / raycaster.ray.direction.z;
+            mouseWorldPos.copy(raycaster.ray.origin).add(raycaster.ray.direction.multiplyScalar(distance));
+
+            // Update particles
+            particles.forEach(particle => {
+                particle.update(mouseWorldPos, time);
+            });
+
+            // Update background stars
+            backgroundStars.forEach(star => star.update(time));
+            constellationStars.forEach(star => star.update(time));
+
+            // Update connections with limit
+            activeConnections.forEach(connection => returnConnection(connection));
+            activeConnections.length = 0;
+
+            // Create new connections with early exit when limit reached
+            let connectionCount = 0;
+            for (let i = 0; i < particles.length && connectionCount < maxConnections; i++) {
+                for (let j = i + 1; j < particles.length && connectionCount < maxConnections; j++) {
+                    const distance = particles[i].position.distanceTo(particles[j].position);
+                    if (distance < connectionDistance) {
+                        const line = getConnection();
+                        const geometry = line.geometry;
+                        const positions = geometry.attributes.position.array;
+                        positions[0] = particles[i].position.x;
+                        positions[1] = particles[i].position.y;
+                        positions[2] = particles[i].position.z;
+                        positions[3] = particles[j].position.x;
+                        positions[4] = particles[j].position.y;
+                        positions[5] = particles[j].position.z;
+                        
+                        geometry.attributes.position.needsUpdate = true;
+                        
+                        activeConnections.push(line);
+                        scene.add(line);
+                        connectionCount++;
+                    }
+                }
+            }
+
+            // Update mouse trail efficiently
+            if (mouseTrail.length > 1) {
+                const trailLength = Math.min(mouseTrail.length, maxTrailPoints);
+                
+                for (let i = 0; i < trailLength; i++) {
+                    const point = mouseTrail[i];
+                    const index = i * 3;
+                    
+                    trailPositions[index] = point.x * 40;
+                    trailPositions[index + 1] = point.y * 30;
+                    trailPositions[index + 2] = 10;
+                    
+                    trailAlphas[i] = i / trailLength;
+                }
+                
+                // Clear unused positions
+                for (let i = trailLength; i < maxTrailPoints; i++) {
+                    const index = i * 3;
+                    trailPositions[index] = 0;
+                    trailPositions[index + 1] = 0;
+                    trailPositions[index + 2] = 0;
+                    trailAlphas[i] = 0;
+                }
+                
+                trailGeometry.attributes.position.needsUpdate = true;
+                trailGeometry.attributes.alpha.needsUpdate = true;
+            }
+
+            // Update shader uniforms
+            connectionMaterial.uniforms.time.value = time;
+            trailMaterial.uniforms.time.value = time;
+            nebulaMaterial.uniforms.time.value = time;
+            nebulaMaterial.uniforms.mouse.value = mouse;
+            constellationLineMaterial.uniforms.time.value = time;
+
+            // Dynamic camera movement
+            cameraTarget.x = mouse.x * 5;
+            cameraTarget.y = mouse.y * 3;
+            camera.position.x += (cameraTarget.x - camera.position.x) * 0.05;
+            camera.position.y += (cameraTarget.y - camera.position.y) * 0.05;
+            
+            // Update lighting
+            pointLight.position.x = mouseWorldPos.x * 0.5;
+            pointLight.position.y = mouseWorldPos.y * 0.5;
+            pointLight.intensity = 1 + (mouseDown ? 2 : 0);
+
+            camera.lookAt(0, 0, 0);
+            renderer.render(scene, camera);
+        }
+
+        // Initialize
+        document.querySelector('.loading').style.display = 'none';
+        animate();
+
+        // Cleanup function to prevent memory leaks
+        function cleanup() {
+            // Dispose of particles
+            particles.forEach(particle => particle.dispose());
+            
+            // Dispose of background stars
+            backgroundStars.forEach(star => star.dispose());
+            constellationStars.forEach(star => star.dispose());
+
+            // Dispose of connections
+            activeConnections.forEach(connection => {
+                scene.remove(connection);
+                connection.geometry.dispose();
+            });
+            
+            connectionPool.forEach(connection => {
+                connection.geometry.dispose();
+            });
+            
+            // Dispose of other geometries and materials
+            trailGeometry.dispose();
+            trailMaterial.dispose();
+            connectionMaterial.dispose();
+            nebulaMaterial.dispose();
+            nebulaGeometry.dispose();
+            constellationLineMaterial.dispose();
+            
+            // Dispose of renderer
+            renderer.dispose();
+        }
+
+        // Add cleanup on page unload
+        window.addEventListener('beforeunload', cleanup);
+        
+        // Error handling
+        window.addEventListener('error', (event) => {
+            console.error('WebGL error:', event.error);
+            document.querySelector('.loading').style.display = 'block';
+            document.querySelector('.loading').textContent = 'Error loading visualization. Please refresh.';
+        });
+
+        // Dynamic name effects
+        const nameOverlay = document.getElementById('name-overlay');
+        window.addEventListener('mousemove', (event) => {
+            const x = (event.clientX / window.innerWidth - 0.5) * 2;
+            const y = (event.clientY / window.innerHeight - 0.5) * 2;
+            
+            nameOverlay.style.textShadow = `
+                ${x * 30}px ${y * 30}px 40px rgba(100, 200, 255, 0.8),
+                ${-x * 20}px ${-y * 20}px 30px rgba(255, 100, 150, 0.4),
+                0 0 60px rgba(255, 255, 255, 0.3)
+            `;
+            
+            nameOverlay.style.transform = `translate(-50%, -50%) translate(${x * 10}px, ${y * 10}px)`;
+        });
+    </script>
 </body>
 </html>
