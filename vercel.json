@@ -8,16 +8,16 @@
   },
   "rewrites": [
     {
+      "source": "/api/probe",
+      "destination": "/api/probe"
+    },
+    {
       "source": "/status(.*)",
       "destination": "/api/status"
     },
     {
       "source": "/health",
       "destination": "/api/health"
-    },
-    {
-      "source": "/",
-      "destination": "/api/probe"
     }
   ]
 }
