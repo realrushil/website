@@ -7,7 +7,7 @@
     "build": "echo 'No build step required'"
   },
   "dependencies": {
-    "@vercel/kv": "^1.0.1"
+    "redis": "^4.6.7"
   },
   "engines": {
     "node": "22.x"

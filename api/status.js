@@ -1,5 +1,5 @@
 // Vercel serverless function to display probe status
-import { kv } from '@vercel/kv';
+import { createClient } from 'redis';
 
 export default async function handler(req, res) {
   // Set CORS headers
@@ -29,12 +29,24 @@ export default async function handler(req, res) {
     };
     
     try {
-      latest = await kv.get('probe:latest');
-      const historyRaw = await kv.lrange('probe:history', 0, 49) || [];
+      // Connect to Redis
+      const redis = createClient({
+        url: process.env.REDIS_URL
+      });
+      await redis.connect();
+      
+      const latestRaw = await redis.get('probe:latest');
+      latest = latestRaw ? JSON.parse(latestRaw) : null;
+      
+      const historyRaw = await redis.lrange('probe:history', 0, 49) || [];
       history = historyRaw.map(item => typeof item === 'string' ? JSON.parse(item) : item);
-      stats = await kv.get('probe:stats') || stats;
-    } catch (kvError) {
-      console.error('KV storage error:', kvError);
+      
+      const statsRaw = await redis.get('probe:stats');
+      stats = statsRaw ? JSON.parse(statsRaw) : stats;
+      
+      await redis.disconnect();
+    } catch (redisError) {
+      console.error('Redis storage error:', redisError);
       // Continue with empty data
     }
     

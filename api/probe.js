@@ -1,5 +1,5 @@
 // Vercel serverless function to handle Arduino probe data
-import { kv } from '@vercel/kv';
+import { createClient } from 'redis';
 
 // Rate limiting helper
 const rateLimit = new Map();
@@ -84,17 +84,23 @@ export default async function handler(req, res) {
     };
     
     try {
-      // Store in Vercel KV (Redis-compatible storage)
-      await kv.set('probe:latest', enrichedData);
+      // Connect to Redis
+      const redis = createClient({
+        url: process.env.REDIS_URL
+      });
+      await redis.connect();
+      
+      // Store in Redis
+      await redis.set('probe:latest', JSON.stringify(enrichedData));
       
       // Add to history (keep last 50 for performance)
       const historyKey = 'probe:history';
-      const history = await kv.lrange(historyKey, 0, 48) || [];
-      await kv.lpush(historyKey, JSON.stringify(enrichedData));
-      await kv.ltrim(historyKey, 0, 49); // Keep only last 50
+      await redis.lpush(historyKey, JSON.stringify(enrichedData));
+      await redis.ltrim(historyKey, 0, 49); // Keep only last 50
       
       // Update stats
-      const stats = await kv.get('probe:stats') || {
+      const statsRaw = await redis.get('probe:stats');
+      const stats = statsRaw ? JSON.parse(statsRaw) : {
         totalRequests: 0,
         deviceInfo: {}
       };
@@ -106,13 +112,15 @@ export default async function handler(req, res) {
         lastData: data.data
       };
       
-      await kv.set('probe:stats', stats);
+      await redis.set('probe:stats', JSON.stringify(stats));
       
       console.log(`[${serverTimestamp}] Received data from ${data.device_id}`);
       console.log('Data:', JSON.stringify(data.data, null, 2));
       
-    } catch (kvError) {
-      console.error('KV storage error:', kvError);
+      await redis.disconnect();
+      
+    } catch (redisError) {
+      console.error('Redis storage error:', redisError);
       // Continue without storage for now
     }
     
