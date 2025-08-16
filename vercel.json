@@ -1,37 +1,23 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "index.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/status(.*)",
-      "dest": "/api/status.js"
-    },
-    {
-      "src": "/health",
-      "dest": "/api/health.js"
-    },
-    {
-      "src": "/((?!api/).*)",
-      "dest": "/index.html"
-    },
-    {
-      "src": "/",
-      "methods": ["POST"],
-      "dest": "/api/probe.js"
-    }
-  ],
   "functions": {
     "api/**/*.js": {
+      "runtime": "nodejs18.x",
       "maxDuration": 10
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/status(.*)",
+      "destination": "/api/status"
+    },
+    {
+      "source": "/health",
+      "destination": "/api/health"
+    },
+    {
+      "source": "/",
+      "destination": "/api/probe"
+    }
+  ]
 }
