@@ -1,4 +1,6 @@
 {
+  "buildCommand": "echo 'Static files ready'",
+  "outputDirectory": "./",
   "functions": {
     "api/**/*.js": {
       "maxDuration": 10
