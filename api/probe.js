@@ -67,17 +67,30 @@ export default async function handler(req, res) {
     const data = req.body;
     
     // Validate incoming data structure
-    if (!data.device_id || !data.timestamp || !data.data) {
+    if (!data.device_id || !data.timestamp) {
       return res.status(400).json({ 
         error: 'Invalid data format',
-        message: 'Required fields: device_id, timestamp, data'
+        message: 'Required fields: device_id, timestamp'
       });
     }
     
-    // Add server timestamp
+    // Extract SSID data from the payload (everything except device_id and timestamp)
+    const { device_id, timestamp, ...ssidData } = data;
+    
+    // Check if we have any SSID data
+    if (Object.keys(ssidData).length === 0) {
+      return res.status(400).json({ 
+        error: 'Invalid data format',
+        message: 'No SSID data found in payload'
+      });
+    }
+    
+    // Add server timestamp and restructure data for storage
     const serverTimestamp = new Date().toISOString();
     const enrichedData = {
-      ...data,
+      device_id: data.device_id,
+      timestamp: data.timestamp,
+      data: ssidData, // Store SSID data in 'data' field for consistency with existing storage
       server_timestamp: serverTimestamp,
       received_at: Date.now(),
       client_ip: clientIP
@@ -109,13 +122,13 @@ export default async function handler(req, res) {
       stats.lastUpdate = serverTimestamp;
       stats.deviceInfo[data.device_id] = {
         lastSeen: serverTimestamp,
-        lastData: data.data
+        lastData: ssidData
       };
       
       await redis.set('probe:stats', JSON.stringify(stats));
       
       console.log(`[${serverTimestamp}] Received data from ${data.device_id}`);
-      console.log('Data:', JSON.stringify(data.data, null, 2));
+      console.log('Data:', JSON.stringify(ssidData, null, 2));
       
       await redis.disconnect();
       

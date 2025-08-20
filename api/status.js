@@ -102,6 +102,36 @@ function escapeHtml(str) {
 function generateStatusHTML(latest, stats, history) {
   const networks = latest && latest.data ? Object.entries(latest.data) : [];
   const sortedNetworks = networks.sort((a, b) => b[1] - a[1]);
+  
+  // Format timestamps for display
+  const formatTimestamp = (timestamp) => {
+    if (!timestamp) return 'N/A';
+    
+    // Handle both Unix timestamps (seconds) and ISO strings
+    let date;
+    if (typeof timestamp === 'number') {
+      // ESP32 sends Unix timestamp in seconds
+      date = new Date(timestamp * 1000);
+    } else if (typeof timestamp === 'string') {
+      date = new Date(timestamp);
+    } else {
+      return 'Invalid';
+    }
+    
+    if (isNaN(date.getTime())) return 'Invalid';
+    
+    // Format in PST timezone
+    return date.toLocaleString('en-US', {
+      timeZone: 'America/Los_Angeles',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      timeZoneName: 'short'
+    });
+  };
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -121,8 +151,13 @@ function generateStatusHTML(latest, stats, history) {
       -moz-osx-font-smoothing: grayscale;
     }
     .container { max-width: 720px; margin: 0 auto; padding: 32px 16px; }
-    h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 16px; }
-    .card { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 24px; }
+    h2 { font-size: 18px; font-weight: 600; margin: 0 0 12px; color: var(--text); }
+    .card { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; padding: 16px; background: #fafafa; }
+    .info-item { display: flex; flex-direction: column; }
+    .info-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .info-value { font-size: 14px; font-weight: 500; color: var(--text); font-variant-numeric: tabular-nums; }
     table { width: 100%; border-collapse: collapse; }
     thead th { text-align: left; font-weight: 600; padding: 14px 16px; background: #fafafa; border-bottom: 1px solid var(--border); }
     tbody td { padding: 12px 16px; border-bottom: 1px solid var(--border); }
@@ -135,7 +170,55 @@ function generateStatusHTML(latest, stats, history) {
 </head>
 <body>
   <main class="container">
-    <h1>Detected Wi‑Fi networks</h1>
+    <h1>ESP32 WiFi Probe Monitor</h1>
+    
+    ${latest ? `
+    <div class="card">
+      <div class="info-grid">
+        <div class="info-item">
+          <div class="info-label">Device ID</div>
+          <div class="info-value">${escapeHtml(latest.device_id || 'Unknown')}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">ESP32 Timestamp</div>
+          <div class="info-value">${formatTimestamp(latest.timestamp)}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Server Received</div>
+          <div class="info-value">${formatTimestamp(latest.server_timestamp)}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Networks Found</div>
+          <div class="info-value">${Object.keys(latest.data || {}).length}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Total Devices</div>
+          <div class="info-value">${Object.values(latest.data || {}).reduce((sum, count) => sum + count, 0)}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Time Sync Status</div>
+          <div class="info-value">${(() => {
+            if (!latest.timestamp || !latest.received_at) return 'Unknown';
+            
+            const esp32Time = typeof latest.timestamp === 'number' ? latest.timestamp * 1000 : new Date(latest.timestamp).getTime();
+            const serverTime = latest.received_at;
+            const timeDiff = Math.abs(serverTime - esp32Time) / 1000; // difference in seconds
+            
+            if (timeDiff < 10) return '✅ Synced';
+            else if (timeDiff < 60) return `⚠️ ${Math.round(timeDiff)}s diff`;
+            else if (timeDiff < 3600) return `❌ ${Math.round(timeDiff/60)}m diff`;
+            else return `❌ ${Math.round(timeDiff/3600)}h diff`;
+          })()}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Client IP</div>
+          <div class="info-value">${escapeHtml(latest.client_ip || 'Unknown')}</div>
+        </div>
+      </div>
+    </div>
+    ` : ''}
+    
+    <h2>Detected Networks</h2>
     <div class="card">
       ${sortedNetworks.length === 0 ? `
         <div class="empty">No networks detected yet.</div>
