@@ -75,7 +75,7 @@ export default async function handler(req, res) {
     }
     
     // Extract SSID data from the payload (everything except metadata)
-    const { device_id, timestamp, battery_voltage, battery_percentage, battery_status, ...ssidData } = data;
+    const { device_id, timestamp, ...ssidData } = data;
     
     // Check if we have any SSID data
     if (Object.keys(ssidData).length === 0) {
@@ -90,9 +90,6 @@ export default async function handler(req, res) {
     const enrichedData = {
       device_id: data.device_id,
       timestamp: data.timestamp,
-      battery_voltage: data.battery_voltage || null,
-      battery_percentage: data.battery_percentage || null,
-      battery_status: data.battery_status || null,
       data: ssidData, // Store SSID data in 'data' field for consistency with existing storage
       server_timestamp: serverTimestamp,
       received_at: Date.now(),
