@@ -158,9 +158,6 @@ function generateStatusHTML(latest, stats, history) {
     .info-item { display: flex; flex-direction: column; }
     .info-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
     .info-value { font-size: 14px; font-weight: 500; color: var(--text); font-variant-numeric: tabular-nums; }
-    .battery-critical { color: #dc3545; }
-    .battery-low { color: #fd7e14; }
-    .battery-good { color: #28a745; }
     table { width: 100%; border-collapse: collapse; }
     thead th { text-align: left; font-weight: 600; padding: 14px 16px; background: #fafafa; border-bottom: 1px solid var(--border); }
     tbody td { padding: 12px 16px; border-bottom: 1px solid var(--border); }
@@ -213,28 +210,7 @@ function generateStatusHTML(latest, stats, history) {
             else return `❌ ${Math.round(timeDiff/3600)}h diff`;
           })()}</div>
         </div>
-        <div class="info-item">
-          <div class="info-label">Battery Level</div>
-          <div class="info-value">${(() => {
-            if (latest.battery_percentage !== null && latest.battery_percentage !== undefined) {
-              const percentage = latest.battery_percentage;
-              const voltage = latest.battery_voltage ? latest.battery_voltage.toFixed(2) : 'N/A';
-              const status = latest.battery_status || 'Unknown';
-              let emoji = '🔋';
-              if (percentage > 75) emoji = '🔋';
-              else if (percentage > 50) emoji = '🔋';
-              else if (percentage > 25) emoji = '🪫';
-              else if (percentage > 10) emoji = '🪫';
-              else emoji = '⚠️';
-              return `${emoji} ${percentage}% (${voltage}V)`;
-            }
-            return '🔋 Unknown';
-          })()}</div>
-        </div>
-        <div class="info-item">
-          <div class="info-label">Battery Status</div>
-          <div class="info-value">${latest.battery_status || 'Unknown'}</div>
-        </div>
+
         <div class="info-item">
           <div class="info-label">Client IP</div>
           <div class="info-value">${escapeHtml(latest.client_ip || 'Unknown')}</div>
