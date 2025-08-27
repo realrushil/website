@@ -413,9 +413,10 @@ function generateStatusHTML(latest, stats, history) {
     fillLight.position.set(-5, 5, -5);
     scene.add(fillLight);
 
-    // Load GLB book stack asset
+    // Load GLB assets
     const loader = new THREE.GLTFLoader();
     let bookStackModel = null;
+    let libraryTableModel = null;
     
     function loadBookStack() {
       return new Promise((resolve, reject) => {
@@ -440,6 +441,35 @@ function generateStatusHTML(latest, stats, history) {
           },
           function (error) {
             console.error('Error loading book stack model:', error);
+            reject(error);
+          }
+        );
+      });
+    }
+    
+    function loadLibraryTable() {
+      return new Promise((resolve, reject) => {
+        loader.load(
+          '/assets/library_table_with_studio_lights.glb',
+          function (gltf) {
+            libraryTableModel = gltf.scene;
+            
+            // Enable shadows for all meshes in the model
+            libraryTableModel.traverse(function (child) {
+              if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+              }
+            });
+            
+            console.log('Library table model loaded successfully');
+            resolve(libraryTableModel);
+          },
+          function (progress) {
+            console.log('Loading table progress:', (progress.loaded / progress.total * 100) + '%');
+          },
+          function (error) {
+            console.error('Error loading library table model:', error);
             reject(error);
           }
         );
@@ -506,19 +536,25 @@ function generateStatusHTML(latest, stats, history) {
       return laptop;
     }
 
-    // Create desk surface
-    const deskGeometry = new THREE.BoxGeometry(12, 0.3, 4);
-    const deskMaterial = new THREE.MeshLambertMaterial({ color: 0x3d2914 });
-    const desk = new THREE.Mesh(deskGeometry, deskMaterial);
-    desk.position.set(0, -1.2, 0);
-    desk.receiveShadow = true;
-    scene.add(desk);
+    // Library table will be loaded from GLB asset instead of manual creation
 
     // Initialize scene and load assets
     async function initScene() {
       try {
-        // Load the book stack model first
-        await loadBookStack();
+        // Load both assets simultaneously
+        await Promise.all([
+          loadBookStack(),
+          loadLibraryTable()
+        ]);
+        
+        // Add library table
+        if (libraryTableModel) {
+          const table = libraryTableModel.clone();
+          // Position and scale the table appropriately
+          table.scale.set(1, 1, 1); // Adjust scale as needed
+          table.position.set(0, -1.2, 0); // Position where the old desk was
+          scene.add(table);
+        }
         
         // Add bookshelves with loaded book models
         const leftShelf = createBookshelf(-4, 'left');
@@ -526,20 +562,20 @@ function generateStatusHTML(latest, stats, history) {
         scene.add(leftShelf);
         scene.add(rightShelf);
 
-        // Add laptop
+        // Add laptop (might need repositioning with new table)
         const laptop = createLaptop();
         scene.add(laptop);
 
-        // Hide loading and show overlay
+        // Hide loading and keep overlay hidden for now
         document.querySelector('.loading').style.display = 'none';
-        document.getElementById('odometer-overlay').style.display = 'flex';
+        document.getElementById('odometer-overlay').style.display = 'none';
         
         console.log('Scene initialized successfully');
       } catch (error) {
         console.error('Error initializing scene:', error);
-        // Fall back to showing the scene without book models
+        // Fall back to showing the scene without models
         document.querySelector('.loading').style.display = 'none';
-        document.getElementById('odometer-overlay').style.display = 'flex';
+        document.getElementById('odometer-overlay').style.display = 'none';
       }
     }
 
