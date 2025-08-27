@@ -615,9 +615,9 @@ function generateStatusHTML(latest, stats, history) {
       }
     }
 
-    // Position camera to get a good view of the table and books
-    camera.position.set(5, 3, 5); // Move camera up and back to see the table
-    camera.lookAt(0, 1, 0); // Look at a point slightly above the table surface
+    // Position camera high above the table and books
+    camera.position.set(8, 10, 8); // Much higher - well above any table or book height
+    camera.lookAt(0, 0, 0); // Look down at the table surface
 
     // Mouse interaction
     let mouseX = 0;
@@ -631,10 +631,11 @@ function generateStatusHTML(latest, stats, history) {
     function animate() {
       requestAnimationFrame(animate);
       
-      // Subtle camera movement based on mouse
-      camera.position.x += (mouseX * 2 + 5 - camera.position.x) * 0.02;
-      camera.position.y += (mouseY * 1 + 3 - camera.position.y) * 0.02;
-      camera.lookAt(0, 1, 0); // Keep looking at the table area
+      // Subtle camera movement based on mouse - keep camera high up
+      camera.position.x += (mouseX * 3 + 8 - camera.position.x) * 0.02;
+      camera.position.y += (mouseY * 2 + 10 - camera.position.y) * 0.02;
+      camera.position.z += (8 - camera.position.z) * 0.01; // Keep some distance
+      camera.lookAt(0, 0, 0); // Always look down at the table
       
       renderer.render(scene, camera);
     }
