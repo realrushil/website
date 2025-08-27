@@ -177,47 +177,65 @@ function generateStatusHTML(latest, stats, history) {
       background: #1a1611;
       color: #f4f1ea;
       height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       overflow: hidden;
     }
     
-    .meter-container {
-      text-align: center;
+    #three-container {
+      width: 100vw;
+      height: 100vh;
       position: relative;
     }
     
-    .gauge {
+    #odometer-overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      z-index: 100;
+      pointer-events: none;
+      background: rgba(20, 20, 20, 0.9);
+      border-radius: 15px;
+      padding: 30px;
+      border: 2px solid #444;
       width: 300px;
-      height: 300px;
+      height: 200px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .gauge-display {
+      width: 200px;
+      height: 150px;
       position: relative;
-      margin: 0 auto 30px;
+      margin-bottom: 15px;
     }
     
     .gauge-bg {
       width: 100%;
       height: 100%;
-      border-radius: 50%;
+      border-radius: 50% 50% 0 0;
       background: conic-gradient(
-        from 135deg,
+        from 225deg,
         #3d3426 0deg,
-        #3d3426 270deg,
-        transparent 270deg
+        #3d3426 180deg,
+        transparent 180deg
       );
       position: relative;
-      padding: 20px;
+      padding: 15px;
     }
     
     .gauge-fill {
       width: 100%;
       height: 100%;
-      border-radius: 50%;
+      border-radius: 50% 50% 0 0;
       background: conic-gradient(
-        from 135deg,
+        from 225deg,
         ${occupancy.color} 0deg,
-        ${occupancy.color} ${occupancy.gaugePercentage * 2.7}deg,
-        transparent ${occupancy.gaugePercentage * 2.7}deg
+        ${occupancy.color} ${(occupancy.gaugePercentage / 100) * 180}deg,
+        transparent ${(occupancy.gaugePercentage / 100) * 180}deg
       );
       position: relative;
     }
@@ -226,19 +244,12 @@ function generateStatusHTML(latest, stats, history) {
       position: absolute;
       top: 50%;
       left: 50%;
-      transform: translate(-50%, -50%);
-      width: 200px;
-      height: 200px;
-      background: #1a1611;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
+      transform: translate(-50%, -75%);
+      text-align: center;
     }
     
     .count {
-      font-size: 4rem;
+      font-size: 2.5rem;
       font-weight: 900;
       color: ${occupancy.color};
       line-height: 1;
@@ -247,7 +258,7 @@ function generateStatusHTML(latest, stats, history) {
     }
     
     .label {
-      font-size: 1rem;
+      font-size: 0.8rem;
       color: #a08c6b;
       text-transform: lowercase;
       letter-spacing: 0.5px;
@@ -256,64 +267,36 @@ function generateStatusHTML(latest, stats, history) {
     }
     
     .timestamp {
-      font-size: 1.1rem;
+      font-size: 0.7rem;
       color: #8b7355;
-      margin-top: 20px;
       font-weight: 400;
       font-style: italic;
+      text-align: center;
     }
     
-    .no-data {
-      color: #666;
-    }
-    
-    .no-data .count {
-      color: #666;
-    }
-    
-    .no-data .gauge-fill {
-      background: conic-gradient(
-        from 135deg,
-        #3d3426 0deg,
-        #3d3426 270deg,
-        transparent 270deg
-      );
-    }
-    
-    @media (max-width: 480px) {
-      .gauge {
-        width: 250px;
-        height: 250px;
-      }
-      
-      .gauge-inner {
-        width: 170px;
-        height: 170px;
-      }
-      
-      .count {
-        font-size: 3rem;
-      }
-      
-      .label {
-        font-size: 0.9rem;
-      }
-      
-      .timestamp {
-        font-size: 1rem;
-      }
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #8b7355;
+      font-style: italic;
+      z-index: 50;
     }
   </style>
   <meta name="robots" content="noindex" />
 </head>
 <body>
-  <div class="meter-container ${!latest ? 'no-data' : ''}">
-    <div class="gauge">
+  <div id="three-container"></div>
+  <div class="loading">Loading library scene...</div>
+  
+  <div id="odometer-overlay" style="display: none;">
+    <div class="gauge-display">
       <div class="gauge-bg">
         <div class="gauge-fill">
           <div class="gauge-inner">
             <div class="count">${latest ? occupancyPercentage + '%' : '—'}</div>
-            <div class="label">${latest ? 'Capacity' : 'No Data'}</div>
+            <div class="label">${latest ? 'capacity' : 'no data'}</div>
           </div>
         </div>
       </div>
@@ -323,13 +306,161 @@ function generateStatusHTML(latest, stats, history) {
     </div>
   </div>
   
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script>
-    // Auto-refresh every 30 seconds
+    // Scene setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x1a1611);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.getElementById('three-container').appendChild(renderer.domElement);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0x8b7355, 0.4);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xf4f1ea, 0.8);
+    directionalLight.position.set(5, 10, 5);
+    directionalLight.castShadow = true;
+    directionalLight.shadow.mapSize.width = 2048;
+    directionalLight.shadow.mapSize.height = 2048;
+    scene.add(directionalLight);
+
+    // Create bookshelf geometry
+    function createBook(width, height, depth, color) {
+      const geometry = new THREE.BoxGeometry(width, height, depth);
+      const material = new THREE.MeshLambertMaterial({ color: color });
+      const book = new THREE.Mesh(geometry, material);
+      book.castShadow = true;
+      book.receiveShadow = true;
+      return book;
+    }
+
+    function createBookshelf(x, side) {
+      const shelf = new THREE.Group();
+      
+      // Shelf base
+      const shelfGeometry = new THREE.BoxGeometry(3, 0.2, 1.5);
+      const shelfMaterial = new THREE.MeshLambertMaterial({ color: 0x3d2914 });
+      const shelfMesh = new THREE.Mesh(shelfGeometry, shelfMaterial);
+      shelfMesh.position.set(x, -1, 0);
+      shelfMesh.receiveShadow = true;
+      shelf.add(shelfMesh);
+
+      // Books on shelf
+      const bookColors = [0x8B4513, 0x2F4F2F, 0x8B0000, 0x191970, 0x556B2F, 0x800080, 0x008B8B, 0xB22222];
+      let bookX = x - 1.3;
+      
+      for (let i = 0; i < 8; i++) {
+        const bookWidth = 0.15 + Math.random() * 0.15;
+        const bookHeight = 1.2 + Math.random() * 0.4;
+        const book = createBook(bookWidth, bookHeight, 1.2, bookColors[i]);
+        book.position.set(bookX + bookWidth/2, -1 + bookHeight/2 + 0.1, 0);
+        
+        // Add slight random rotation for realism
+        book.rotation.z = (Math.random() - 0.5) * 0.1;
+        
+        shelf.add(book);
+        bookX += bookWidth + 0.02;
+      }
+
+      return shelf;
+    }
+
+    // Create laptop
+    function createLaptop() {
+      const laptop = new THREE.Group();
+      
+      // Laptop base
+      const baseGeometry = new THREE.BoxGeometry(2, 0.1, 1.5);
+      const baseMaterial = new THREE.MeshLambertMaterial({ color: 0x2c2c2c });
+      const base = new THREE.Mesh(baseGeometry, baseMaterial);
+      base.position.set(0, -0.95, 0);
+      base.receiveShadow = true;
+      laptop.add(base);
+
+      // Laptop screen
+      const screenGeometry = new THREE.BoxGeometry(1.8, 1.2, 0.05);
+      const screenMaterial = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
+      const screen = new THREE.Mesh(screenGeometry, screenMaterial);
+      screen.position.set(0, -0.3, -0.7);
+      screen.rotation.x = -Math.PI * 0.15;
+      screen.receiveShadow = true;
+      laptop.add(screen);
+
+      // Screen bezel
+      const bezelGeometry = new THREE.BoxGeometry(1.85, 1.25, 0.03);
+      const bezelMaterial = new THREE.MeshLambertMaterial({ color: 0x2c2c2c });
+      const bezel = new THREE.Mesh(bezelGeometry, bezelMaterial);
+      bezel.position.set(0, -0.29, -0.69);
+      bezel.rotation.x = -Math.PI * 0.15;
+      laptop.add(bezel);
+
+      return laptop;
+    }
+
+    // Create desk surface
+    const deskGeometry = new THREE.BoxGeometry(12, 0.3, 4);
+    const deskMaterial = new THREE.MeshLambertMaterial({ color: 0x3d2914 });
+    const desk = new THREE.Mesh(deskGeometry, deskMaterial);
+    desk.position.set(0, -1.2, 0);
+    desk.receiveShadow = true;
+    scene.add(desk);
+
+    // Add bookshelves
+    const leftShelf = createBookshelf(-4, 'left');
+    const rightShelf = createBookshelf(4, 'right');
+    scene.add(leftShelf);
+    scene.add(rightShelf);
+
+    // Add laptop
+    const laptop = createLaptop();
+    scene.add(laptop);
+
+    // Position camera
+    camera.position.set(0, 2, 4);
+    camera.lookAt(0, 0, 0);
+
+    // Mouse interaction
+    let mouseX = 0;
+    let mouseY = 0;
+    document.addEventListener('mousemove', (event) => {
+      mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+      mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+    });
+
+    // Animation loop
+    function animate() {
+      requestAnimationFrame(animate);
+      
+      // Subtle camera movement based on mouse
+      camera.position.x += (mouseX * 0.5 - camera.position.x) * 0.02;
+      camera.position.y += (mouseY * 0.3 + 2 - camera.position.y) * 0.02;
+      camera.lookAt(0, 0, 0);
+      
+      renderer.render(scene, camera);
+    }
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Initialize scene
+    document.querySelector('.loading').style.display = 'none';
+    document.getElementById('odometer-overlay').style.display = 'flex';
+    animate();
+
+    // Auto-refresh functionality
     let autoRefreshInterval = setInterval(() => {
       window.location.reload();
     }, 30000);
     
-    // Pause auto-refresh when page is not visible
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         clearInterval(autoRefreshInterval);
