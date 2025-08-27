@@ -383,8 +383,8 @@ function generateStatusHTML(latest, stats, history) {
         <input type="range" id="table-z" min="-200" max="200" step="0.1" value="0">
       </div>
       <div class="slider-group">
-        <label for="table-scale">Scale: <span id="scale-value">1.0</span></label>
-        <input type="range" id="table-scale" min="0.01" max="50.0" step="0.01" value="1.0">
+        <label for="table-scale">Scale: <span id="scale-value">0.3</span></label>
+        <input type="range" id="table-scale" min="0.01" max="50.0" step="0.01" value="0.3">
       </div>
     </div>
   </div>
@@ -688,7 +688,7 @@ function generateStatusHTML(latest, stats, history) {
           console.log('Table max:', box.max);
           
           // Set initial position and scale
-          tableInstance.scale.set(1.0, 1.0, 1.0);
+          tableInstance.scale.set(0.3, 0.3, 0.3);
           tableInstance.position.set(0, -1.5, 0);
           
           scene.add(tableInstance);
