@@ -479,21 +479,13 @@ function generateStatusHTML(latest, stats, history) {
     function createBookshelf(x, side) {
       const shelf = new THREE.Group();
       
-      // Shelf base
-      const shelfGeometry = new THREE.BoxGeometry(3, 0.2, 1.5);
-      const shelfMaterial = new THREE.MeshLambertMaterial({ color: 0x3d2914 });
-      const shelfMesh = new THREE.Mesh(shelfGeometry, shelfMaterial);
-      shelfMesh.position.set(x, -1, 0);
-      shelfMesh.receiveShadow = true;
-      shelf.add(shelfMesh);
-
-      // Add book stack model if loaded
+      // Add book stack model if loaded (no shelf base needed)
       if (bookStackModel) {
         const bookStack = bookStackModel.clone();
         
         // Scale and position the book stack appropriately
         bookStack.scale.set(0.8, 0.8, 0.8); // Adjust scale as needed
-        bookStack.position.set(x, -0.9, 0); // Position on shelf
+        bookStack.position.set(x, -1.2, 0); // Position on ground level with table
         
         // Add slight random rotation for variation
         bookStack.rotation.y = (Math.random() - 0.5) * 0.3;
@@ -551,20 +543,20 @@ function generateStatusHTML(latest, stats, history) {
         if (libraryTableModel) {
           const table = libraryTableModel.clone();
           // Position and scale the table appropriately
-          table.scale.set(1, 1, 1); // Adjust scale as needed
-          table.position.set(0, -1.2, 0); // Position where the old desk was
+          table.scale.set(0.8, 0.8, 0.8); // Scale down to fit scene better
+          table.position.set(0, -2, 0); // Position lower and centered between book stacks
           scene.add(table);
         }
         
         // Add bookshelves with loaded book models
-        const leftShelf = createBookshelf(-4, 'left');
-        const rightShelf = createBookshelf(4, 'right');
+        const leftShelf = createBookshelf(-3, 'left');
+        const rightShelf = createBookshelf(3, 'right');
         scene.add(leftShelf);
         scene.add(rightShelf);
 
-        // Add laptop (might need repositioning with new table)
-        const laptop = createLaptop();
-        scene.add(laptop);
+        // Laptop temporarily removed for cleaner evaluation of assets
+        // const laptop = createLaptop();
+        // scene.add(laptop);
 
         // Hide loading and keep overlay hidden for now
         document.querySelector('.loading').style.display = 'none';
