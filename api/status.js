@@ -284,66 +284,7 @@ function generateStatusHTML(latest, stats, history) {
       z-index: 50;
     }
     
-    #position-controls {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      z-index: 200;
-      pointer-events: auto;
-    }
-    
-    .control-panel {
-      background: rgba(20, 20, 20, 0.9);
-      border-radius: 10px;
-      padding: 20px;
-      border: 2px solid #444;
-      min-width: 250px;
-    }
-    
-    .control-panel h3 {
-      color: #f4f1ea;
-      margin: 0 0 15px 0;
-      font-size: 1.1rem;
-      text-align: center;
-    }
-    
-    .slider-group {
-      margin-bottom: 15px;
-    }
-    
-    .slider-group label {
-      display: block;
-      color: #a08c6b;
-      font-size: 0.9rem;
-      margin-bottom: 5px;
-    }
-    
-    .slider-group input[type="range"] {
-      width: 100%;
-      height: 5px;
-      border-radius: 3px;
-      background: #3d3426;
-      outline: none;
-      cursor: pointer;
-    }
-    
-    .slider-group input[type="range"]::-webkit-slider-thumb {
-      appearance: none;
-      width: 15px;
-      height: 15px;
-      border-radius: 50%;
-      background: #f4f1ea;
-      cursor: pointer;
-    }
-    
-    .slider-group input[type="range"]::-moz-range-thumb {
-      width: 15px;
-      height: 15px;
-      border-radius: 50%;
-      background: #f4f1ea;
-      cursor: pointer;
-      border: none;
-    }
+
   </style>
   <meta name="robots" content="noindex" />
 </head>
@@ -367,27 +308,7 @@ function generateStatusHTML(latest, stats, history) {
     </div>
   </div>
   
-  <div id="position-controls">
-    <div class="control-panel">
-      <h3>Table Position Controls</h3>
-      <div class="slider-group">
-        <label for="table-x">X Position: <span id="x-value">0</span></label>
-        <input type="range" id="table-x" min="-5000" max="5000" step="0.1" value="0">
-      </div>
-      <div class="slider-group">
-        <label for="table-y">Y Position: <span id="y-value">0</span></label>
-        <input type="range" id="table-y" min="-5000" max="5000" step="0.1" value="0">
-      </div>
-      <div class="slider-group">
-        <label for="table-z">Z Position: <span id="z-value">0</span></label>
-        <input type="range" id="table-z" min="-5000" max="5000" step="0.1" value="0">
-      </div>
-      <div class="slider-group">
-        <label for="table-scale">Scale: <span id="scale-value">1.0</span></label>
-        <input type="range" id="table-scale" min="0.01" max="5000.0" step="0.01" value="1.0">
-      </div>
-    </div>
-  </div>
+
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -588,47 +509,7 @@ function generateStatusHTML(latest, stats, history) {
       return shelf;
     }
 
-    // Setup table position controls
-    function setupTableControls() {
-      if (!tableInstance) return;
-      
-      const xSlider = document.getElementById('table-x');
-      const ySlider = document.getElementById('table-y');
-      const zSlider = document.getElementById('table-z');
-      const scaleSlider = document.getElementById('table-scale');
-      
-      const xValue = document.getElementById('x-value');
-      const yValue = document.getElementById('y-value');
-      const zValue = document.getElementById('z-value');
-      const scaleValue = document.getElementById('scale-value');
-      
-      // Update table position
-      function updateTablePosition() {
-        if (tableInstance) {
-          const x = parseFloat(xSlider.value);
-          const y = parseFloat(ySlider.value);
-          const z = parseFloat(zSlider.value);
-          const scale = parseFloat(scaleSlider.value);
-          
-          tableInstance.position.set(x, y, z);
-          tableInstance.scale.set(scale, scale, scale);
-          
-          xValue.textContent = x.toFixed(1);
-          yValue.textContent = y.toFixed(1);
-          zValue.textContent = z.toFixed(1);
-          scaleValue.textContent = scale.toFixed(1);
-        }
-      }
-      
-      // Add event listeners
-      xSlider.addEventListener('input', updateTablePosition);
-      ySlider.addEventListener('input', updateTablePosition);
-      zSlider.addEventListener('input', updateTablePosition);
-      scaleSlider.addEventListener('input', updateTablePosition);
-      
-      // Initial update
-      updateTablePosition();
-    }
+
 
     // Create laptop
     function createLaptop() {
@@ -695,9 +576,6 @@ function generateStatusHTML(latest, stats, history) {
           console.log('Table should now be properly centered at world origin');
           
           scene.add(tableInstance);
-          
-          // Setup slider controls
-          setupTableControls();
         }
         
         // Add bookshelves with loaded book models
