@@ -481,7 +481,7 @@ function generateStatusHTML(latest, stats, history) {
       });
     }
 
-    function createBookshelf(x, side) {
+    function createBookshelf(x, side, tableSurfaceY = 0) {
       const shelf = new THREE.Group();
       
       // Add book stack model if loaded (no shelf base needed)
@@ -491,18 +491,24 @@ function generateStatusHTML(latest, stats, history) {
         // Get bounding box to understand book stack dimensions
         const box = new THREE.Box3().setFromObject(bookStack);
         const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
         
         console.log('Book stack ' + side + ' dimensions:', size);
-        console.log('Book stack ' + side + ' original center:', box.getCenter(new THREE.Vector3()));
+        console.log('Book stack ' + side + ' original center:', center);
+        
+        // Calculate proper positioning
+        // Center the book stack horizontally and depth-wise, but position it on the table surface
+        const bookStackY = tableSurfaceY - center.y + (size.y / 2);
         
         // Scale and position the book stack appropriately
         bookStack.scale.set(1, 1, 1); // Standard scale
-        bookStack.position.set(0, 0, 0); // Position at origin
+        bookStack.position.set(x - center.x, bookStackY, 0 - center.z); // Position relative to table
         
         // Add slight random rotation for variation
         bookStack.rotation.y = (Math.random() - 0.5) * 0.3;
         
-        console.log('Book stack positioned at: (0, 0, 0)');
+        console.log('Book stack ' + side + ' positioned at:', bookStack.position);
+        console.log('Book stack ' + side + ' should sit on table surface at Y =', tableSurfaceY);
         shelf.add(bookStack);
       }
 
@@ -578,9 +584,17 @@ function generateStatusHTML(latest, stats, history) {
           scene.add(tableInstance);
         }
         
+        // Calculate table surface height for book positioning
+        let tableSurfaceY = 0;
+        if (tableInstance) {
+          const tableBox = new THREE.Box3().setFromObject(tableInstance);
+          tableSurfaceY = tableBox.max.y; // Top surface of the table
+          console.log('Table surface height (Y):', tableSurfaceY);
+        }
+
         // Add bookshelves with loaded book models
-        const leftShelf = createBookshelf(-3, 'left');
-        const rightShelf = createBookshelf(3, 'right');
+        const leftShelf = createBookshelf(-3, 'left', tableSurfaceY);
+        const rightShelf = createBookshelf(3, 'right', tableSurfaceY);
         scene.add(leftShelf);
         scene.add(rightShelf);
 
