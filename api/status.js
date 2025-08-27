@@ -372,19 +372,19 @@ function generateStatusHTML(latest, stats, history) {
       <h3>Table Position Controls</h3>
       <div class="slider-group">
         <label for="table-x">X Position: <span id="x-value">0</span></label>
-        <input type="range" id="table-x" min="-200" max="200" step="0.1" value="0">
+        <input type="range" id="table-x" min="-5000" max="5000" step="0.1" value="0">
       </div>
       <div class="slider-group">
         <label for="table-y">Y Position: <span id="y-value">-1.5</span></label>
-        <input type="range" id="table-y" min="-100" max="100" step="0.1" value="-1.5">
+        <input type="range" id="table-y" min="-5000" max="5000" step="0.1" value="-1.5">
       </div>
       <div class="slider-group">
         <label for="table-z">Z Position: <span id="z-value">0</span></label>
-        <input type="range" id="table-z" min="-200" max="200" step="0.1" value="0">
+        <input type="range" id="table-z" min="-5000" max="5000" step="0.1" value="0">
       </div>
       <div class="slider-group">
         <label for="table-scale">Scale: <span id="scale-value">0.3</span></label>
-        <input type="range" id="table-scale" min="0.01" max="50.0" step="0.01" value="0.3">
+        <input type="range" id="table-scale" min="0.01" max="5000.0" step="0.01" value="0.3">
       </div>
     </div>
   </div>
