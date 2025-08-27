@@ -329,13 +329,55 @@ function generateStatusHTML(latest, stats, history) {
     directionalLight.shadow.mapSize.height = 2048;
     scene.add(directionalLight);
 
-    // Create bookshelf geometry
-    function createBook(width, height, depth, color) {
-      const geometry = new THREE.BoxGeometry(width, height, depth);
-      const material = new THREE.MeshLambertMaterial({ color: color });
-      const book = new THREE.Mesh(geometry, material);
-      book.castShadow = true;
-      book.receiveShadow = true;
+    // Create realistic book geometry
+    function createBook(width, height, depth, spineColor, coverColor) {
+      const book = new THREE.Group();
+      
+      // Main book body (cover)
+      const coverGeometry = new THREE.BoxGeometry(width, height, depth);
+      const coverMaterial = new THREE.MeshLambertMaterial({ color: coverColor });
+      const cover = new THREE.Mesh(coverGeometry, coverMaterial);
+      cover.castShadow = true;
+      cover.receiveShadow = true;
+      book.add(cover);
+      
+      // Book spine (slightly different color)
+      const spineGeometry = new THREE.BoxGeometry(width * 0.95, height * 0.95, depth * 1.02);
+      const spineMaterial = new THREE.MeshLambertMaterial({ color: spineColor });
+      const spine = new THREE.Mesh(spineGeometry, spineMaterial);
+      spine.position.z = depth * 0.01;
+      book.add(spine);
+      
+      // Pages (white/cream colored edge)
+      const pagesGeometry = new THREE.BoxGeometry(width * 0.85, height * 0.85, depth * 0.98);
+      const pagesMaterial = new THREE.MeshLambertMaterial({ color: 0xf5f5dc });
+      const pages = new THREE.Mesh(pagesGeometry, pagesMaterial);
+      pages.position.x = width * 0.02;
+      book.add(pages);
+      
+      // Book title area (darker rectangle on spine)
+      const titleGeometry = new THREE.BoxGeometry(width * 0.8, height * 0.3, depth * 1.03);
+      const titleMaterial = new THREE.MeshLambertMaterial({ 
+        color: new THREE.Color(spineColor).multiplyScalar(0.7) 
+      });
+      const title = new THREE.Mesh(titleGeometry, titleMaterial);
+      title.position.y = height * 0.2;
+      title.position.z = depth * 0.015;
+      book.add(title);
+      
+      // Add some wear/variation with a subtle overlay
+      const wearGeometry = new THREE.BoxGeometry(width * 0.3, height * 0.1, depth * 1.04);
+      const wearMaterial = new THREE.MeshLambertMaterial({ 
+        color: new THREE.Color(coverColor).multiplyScalar(0.8),
+        transparent: true,
+        opacity: 0.6
+      });
+      const wear = new THREE.Mesh(wearGeometry, wearMaterial);
+      wear.position.y = -height * 0.3;
+      wear.position.x = width * 0.1;
+      wear.position.z = depth * 0.02;
+      book.add(wear);
+      
       return book;
     }
 
@@ -350,18 +392,39 @@ function generateStatusHTML(latest, stats, history) {
       shelfMesh.receiveShadow = true;
       shelf.add(shelfMesh);
 
-      // Books on shelf
-      const bookColors = [0x8B4513, 0x2F4F2F, 0x8B0000, 0x191970, 0x556B2F, 0x800080, 0x008B8B, 0xB22222];
+      // Books on shelf with realistic colors
+      const bookData = [
+        { spine: 0x8B4513, cover: 0xA0522D }, // Brown
+        { spine: 0x2F4F2F, cover: 0x556B2F }, // Dark green
+        { spine: 0x8B0000, cover: 0xB22222 }, // Dark red
+        { spine: 0x191970, cover: 0x4169E1 }, // Navy blue
+        { spine: 0x556B2F, cover: 0x6B8E23 }, // Olive
+        { spine: 0x800080, cover: 0x9370DB }, // Purple
+        { spine: 0x008B8B, cover: 0x20B2AA }, // Teal
+        { spine: 0xB22222, cover: 0xDC143C }  // Crimson
+      ];
+      
       let bookX = x - 1.3;
       
       for (let i = 0; i < 8; i++) {
         const bookWidth = 0.15 + Math.random() * 0.15;
         const bookHeight = 1.2 + Math.random() * 0.4;
-        const book = createBook(bookWidth, bookHeight, 1.2, bookColors[i]);
+        const bookDepth = 1.0 + Math.random() * 0.4;
+        
+        const book = createBook(
+          bookWidth, 
+          bookHeight, 
+          bookDepth, 
+          bookData[i].spine, 
+          bookData[i].cover
+        );
+        
         book.position.set(bookX + bookWidth/2, -1 + bookHeight/2 + 0.1, 0);
         
-        // Add slight random rotation for realism
+        // Add slight random rotation and lean for realism
         book.rotation.z = (Math.random() - 0.5) * 0.1;
+        book.rotation.y = (Math.random() - 0.5) * 0.05;
+        book.rotation.x = (Math.random() - 0.5) * 0.02;
         
         shelf.add(book);
         bookX += bookWidth + 0.02;
