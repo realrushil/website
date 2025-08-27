@@ -631,10 +631,14 @@ function generateStatusHTML(latest, stats, history) {
     function animate() {
       requestAnimationFrame(animate);
       
-      // Subtle camera movement based on mouse - keep camera high up
-      camera.position.x += (mouseX * 3 + 8 - camera.position.x) * 0.02;
-      camera.position.y += (mouseY * 2 + 10 - camera.position.y) * 0.02;
-      camera.position.z += (8 - camera.position.z) * 0.01; // Keep some distance
+      // Simple camera movement based on mouse - orbit around the table
+      const baseX = 8;
+      const baseY = 10;
+      const baseZ = 8;
+      
+      camera.position.x = baseX + mouseX * 3; // Mouse right = camera right
+      camera.position.y = baseY + mouseY * 2; // Mouse up = camera up  
+      camera.position.z = baseZ + mouseX * 2; // Add some Z movement for orbit
       camera.lookAt(0, 0, 0); // Always look down at the table
       
       renderer.render(scene, camera);
