@@ -307,6 +307,7 @@ function generateStatusHTML(latest, stats, history) {
   </div>
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
   <script>
     // Scene setup
     const scene = new THREE.Scene();
@@ -329,77 +330,37 @@ function generateStatusHTML(latest, stats, history) {
     directionalLight.shadow.mapSize.height = 2048;
     scene.add(directionalLight);
 
-    // Create realistic book geometry
-    function createBook(width, height, depth, spineColor, coverColor) {
-      const book = new THREE.Group();
-      
-      // Pages FIRST - make them the full size and position them centered
-      const pagesGeometry = new THREE.BoxGeometry(width, height, depth);
-      const pagesMaterial = new THREE.MeshLambertMaterial({ color: 0xf8f8f0 }); // Off-white pages
-      const pages = new THREE.Mesh(pagesGeometry, pagesMaterial);
-      pages.castShadow = true;
-      pages.receiveShadow = true;
-      book.add(pages);
-      
-      // Front edge of pages (pure white)
-      const frontPagesGeometry = new THREE.BoxGeometry(width * 0.02, height, depth * 0.98);
-      const frontPagesMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
-      const frontPages = new THREE.Mesh(frontPagesGeometry, frontPagesMaterial);
-      frontPages.position.set(width * 0.49, 0, 0);
-      book.add(frontPages);
-      
-      // Cover - SMALLER than pages so pages stick out
-      const coverGeometry = new THREE.BoxGeometry(width * 0.95, height * 0.96, depth * 0.06);
-      const coverMaterial = new THREE.MeshLambertMaterial({ color: coverColor });
-      const cover = new THREE.Mesh(coverGeometry, coverMaterial);
-      cover.position.set(-width * 0.02, 0, depth * 0.47); // Position cover on back
-      cover.castShadow = true;
-      cover.receiveShadow = true;
-      book.add(cover);
-      
-      // Back cover
-      const backCoverGeometry = new THREE.BoxGeometry(width * 0.95, height * 0.96, depth * 0.06);
-      const backCoverMaterial = new THREE.MeshLambertMaterial({ color: coverColor });
-      const backCover = new THREE.Mesh(backCoverGeometry, backCoverMaterial);
-      backCover.position.set(-width * 0.02, 0, -depth * 0.47); // Position cover on front
-      backCover.castShadow = true;
-      book.add(backCover);
-      
-      // Book spine - connects the covers
-      const spineGeometry = new THREE.BoxGeometry(width * 0.08, height * 0.96, depth * 0.94);
-      const spineMaterial = new THREE.MeshLambertMaterial({ color: spineColor });
-      const spine = new THREE.Mesh(spineGeometry, spineMaterial);
-      spine.position.set(-width * 0.46, 0, 0); // Position spine on left side
-      spine.castShadow = true;
-      book.add(spine);
-      
-      // Individual page lines for realistic stack effect
-      for (let i = 0; i < 4; i++) {
-        const lineGeometry = new THREE.BoxGeometry(width * 0.015, height * 0.98, depth * 0.002);
-        const lineMaterial = new THREE.MeshLambertMaterial({ 
-          color: 0xe0e0e0,
-          transparent: true,
-          opacity: 0.6
-        });
-        const line = new THREE.Mesh(lineGeometry, lineMaterial);
-        line.position.set(
-          width * (0.45 - i * 0.05), 
-          0, 
-          (Math.random() - 0.5) * depth * 0.1
+    // Load GLB book stack asset
+    const loader = new THREE.GLTFLoader();
+    let bookStackModel = null;
+    
+    function loadBookStack() {
+      return new Promise((resolve, reject) => {
+        loader.load(
+          '/assets/book_stack.glb',
+          function (gltf) {
+            bookStackModel = gltf.scene;
+            
+            // Enable shadows for all meshes in the model
+            bookStackModel.traverse(function (child) {
+              if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+              }
+            });
+            
+            console.log('Book stack model loaded successfully');
+            resolve(bookStackModel);
+          },
+          function (progress) {
+            console.log('Loading progress:', (progress.loaded / progress.total * 100) + '%');
+          },
+          function (error) {
+            console.error('Error loading book stack model:', error);
+            reject(error);
+          }
         );
-        book.add(line);
-      }
-      
-      // Book title area on spine
-      const titleGeometry = new THREE.BoxGeometry(width * 0.06, height * 0.4, depth * 0.6);
-      const titleMaterial = new THREE.MeshLambertMaterial({ 
-        color: new THREE.Color(spineColor).multiplyScalar(0.7) 
       });
-      const title = new THREE.Mesh(titleGeometry, titleMaterial);
-      title.position.set(-width * 0.47, height * 0.1, 0);
-      book.add(title);
-      
-      return book;
     }
 
     function createBookshelf(x, side) {
@@ -413,42 +374,18 @@ function generateStatusHTML(latest, stats, history) {
       shelfMesh.receiveShadow = true;
       shelf.add(shelfMesh);
 
-      // Books on shelf with realistic colors
-      const bookData = [
-        { spine: 0x8B4513, cover: 0xA0522D }, // Brown
-        { spine: 0x2F4F2F, cover: 0x556B2F }, // Dark green
-        { spine: 0x8B0000, cover: 0xB22222 }, // Dark red
-        { spine: 0x191970, cover: 0x4169E1 }, // Navy blue
-        { spine: 0x556B2F, cover: 0x6B8E23 }, // Olive
-        { spine: 0x800080, cover: 0x9370DB }, // Purple
-        { spine: 0x008B8B, cover: 0x20B2AA }, // Teal
-        { spine: 0xB22222, cover: 0xDC143C }  // Crimson
-      ];
-      
-      let bookX = x - 1.3;
-      
-      for (let i = 0; i < 8; i++) {
-        const bookWidth = 0.15 + Math.random() * 0.15;
-        const bookHeight = 1.2 + Math.random() * 0.4;
-        const bookDepth = 1.0 + Math.random() * 0.4;
+      // Add book stack model if loaded
+      if (bookStackModel) {
+        const bookStack = bookStackModel.clone();
         
-        const book = createBook(
-          bookWidth, 
-          bookHeight, 
-          bookDepth, 
-          bookData[i].spine, 
-          bookData[i].cover
-        );
+        // Scale and position the book stack appropriately
+        bookStack.scale.set(0.8, 0.8, 0.8); // Adjust scale as needed
+        bookStack.position.set(x, -0.9, 0); // Position on shelf
         
-        book.position.set(bookX + bookWidth/2, -1 + bookHeight/2 + 0.1, 0);
+        // Add slight random rotation for variation
+        bookStack.rotation.y = (Math.random() - 0.5) * 0.3;
         
-        // Add slight random rotation and lean for realism
-        book.rotation.z = (Math.random() - 0.5) * 0.1;
-        book.rotation.y = (Math.random() - 0.5) * 0.05;
-        book.rotation.x = (Math.random() - 0.5) * 0.02;
-        
-        shelf.add(book);
-        bookX += bookWidth + 0.02;
+        shelf.add(bookStack);
       }
 
       return shelf;
@@ -494,15 +431,34 @@ function generateStatusHTML(latest, stats, history) {
     desk.receiveShadow = true;
     scene.add(desk);
 
-    // Add bookshelves
-    const leftShelf = createBookshelf(-4, 'left');
-    const rightShelf = createBookshelf(4, 'right');
-    scene.add(leftShelf);
-    scene.add(rightShelf);
+    // Initialize scene and load assets
+    async function initScene() {
+      try {
+        // Load the book stack model first
+        await loadBookStack();
+        
+        // Add bookshelves with loaded book models
+        const leftShelf = createBookshelf(-4, 'left');
+        const rightShelf = createBookshelf(4, 'right');
+        scene.add(leftShelf);
+        scene.add(rightShelf);
 
-    // Add laptop
-    const laptop = createLaptop();
-    scene.add(laptop);
+        // Add laptop
+        const laptop = createLaptop();
+        scene.add(laptop);
+
+        // Hide loading and show overlay
+        document.querySelector('.loading').style.display = 'none';
+        document.getElementById('odometer-overlay').style.display = 'flex';
+        
+        console.log('Scene initialized successfully');
+      } catch (error) {
+        console.error('Error initializing scene:', error);
+        // Fall back to showing the scene without book models
+        document.querySelector('.loading').style.display = 'none';
+        document.getElementById('odometer-overlay').style.display = 'flex';
+      }
+    }
 
     // Position camera
     camera.position.set(0, 2, 4);
@@ -535,9 +491,8 @@ function generateStatusHTML(latest, stats, history) {
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    // Initialize scene
-    document.querySelector('.loading').style.display = 'none';
-    document.getElementById('odometer-overlay').style.display = 'flex';
+    // Initialize scene and start animation
+    initScene();
     animate();
 
     // Auto-refresh functionality
