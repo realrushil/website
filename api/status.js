@@ -375,16 +375,16 @@ function generateStatusHTML(latest, stats, history) {
         <input type="range" id="table-x" min="-5000" max="5000" step="0.1" value="0">
       </div>
       <div class="slider-group">
-        <label for="table-y">Y Position: <span id="y-value">-1.5</span></label>
-        <input type="range" id="table-y" min="-5000" max="5000" step="0.1" value="-1.5">
+        <label for="table-y">Y Position: <span id="y-value">0</span></label>
+        <input type="range" id="table-y" min="-5000" max="5000" step="0.1" value="0">
       </div>
       <div class="slider-group">
         <label for="table-z">Z Position: <span id="z-value">0</span></label>
         <input type="range" id="table-z" min="-5000" max="5000" step="0.1" value="0">
       </div>
       <div class="slider-group">
-        <label for="table-scale">Scale: <span id="scale-value">0.3</span></label>
-        <input type="range" id="table-scale" min="0.01" max="5000.0" step="0.01" value="0.3">
+        <label for="table-scale">Scale: <span id="scale-value">1.0</span></label>
+        <input type="range" id="table-scale" min="0.01" max="5000.0" step="0.01" value="1.0">
       </div>
     </div>
   </div>
@@ -575,13 +575,13 @@ function generateStatusHTML(latest, stats, history) {
         console.log('Book stack ' + side + ' original center:', box.getCenter(new THREE.Vector3()));
         
         // Scale and position the book stack appropriately
-        bookStack.scale.set(0.8, 0.8, 0.8); // Adjust scale as needed
-        bookStack.position.set(x, -1.2, 0); // Position on ground level with table
+        bookStack.scale.set(1, 1, 1); // Standard scale
+        bookStack.position.set(0, 0, 0); // Position at origin
         
         // Add slight random rotation for variation
         bookStack.rotation.y = (Math.random() - 0.5) * 0.3;
         
-        console.log('Book stack positioned at: (' + x + ', -1.2, 0)');
+        console.log('Book stack positioned at: (0, 0, 0)');
         shelf.add(bookStack);
       }
 
@@ -688,8 +688,8 @@ function generateStatusHTML(latest, stats, history) {
           console.log('Table max:', box.max);
           
           // Set initial position and scale
-          tableInstance.scale.set(0.3, 0.3, 0.3);
-          tableInstance.position.set(0, -1.5, 0);
+          tableInstance.scale.set(1, 1, 1);
+          tableInstance.position.set(0, 0, 0);
           
           scene.add(tableInstance);
           
