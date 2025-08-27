@@ -588,8 +588,24 @@ function generateStatusHTML(latest, stats, history) {
         let tableSurfaceY = 0;
         if (tableInstance) {
           const tableBox = new THREE.Box3().setFromObject(tableInstance);
+          const tableSize = tableBox.getSize(new THREE.Vector3());
           tableSurfaceY = tableBox.max.y; // Top surface of the table
           console.log('Table surface height (Y):', tableSurfaceY);
+          console.log('Table size:', tableSize);
+          
+          // Position camera as if someone is sitting at the table
+          // Typical sitting eye level is about 1.2m (scaled units) above table surface
+          const sittingEyeHeight = tableSurfaceY + 1.2;
+          
+          // Position camera at table edge - use table depth to determine distance
+          // Sit at the "front" of the table (negative Z direction from center)
+          const sittingDistance = tableSize.z * 0.6; // Sit at 60% of table depth from center
+          
+          camera.position.set(0, sittingEyeHeight, sittingDistance);
+          // Look slightly down at the table surface, not directly at center but at table edge
+          camera.lookAt(0, tableSurfaceY - 0.2, 0);
+          
+          console.log('Camera positioned for sitting view at:', camera.position);
         }
 
         // Add bookshelves with loaded book models
@@ -615,9 +631,8 @@ function generateStatusHTML(latest, stats, history) {
       }
     }
 
-    // Position camera high above the table and books for top-down view
-    camera.position.set(0, 20, 0); // Directly above the table at significant height
-    camera.lookAt(0, 0, 0); // Look straight down at the table surface
+    // Position camera as if someone is sitting at the table
+    // We'll set this properly after the table loads and we know its dimensions
 
     // Mouse interaction
     let mouseX = 0;
@@ -631,15 +646,22 @@ function generateStatusHTML(latest, stats, history) {
     function animate() {
       requestAnimationFrame(animate);
       
-      // Subtle camera movement for top-down view - stay above table
-      const baseX = 0;
-      const baseY = 20;
-      const baseZ = 0;
-      
-      camera.position.x = baseX + mouseX * 2; // Slight horizontal movement
-      camera.position.y = baseY + mouseY * 1; // Slight vertical movement (stay high above)
-      camera.position.z = baseZ + mouseX * 1; // Minimal Z movement
-      camera.lookAt(0, 0, 0); // Always look down at the table
+      // Natural head movement for sitting perspective
+      // Only move if camera has been positioned (after table loads)
+      if (camera.position.y > 1) { // Check if camera has been positioned
+        const currentPos = camera.position.clone();
+        
+        // Subtle head movements - look around naturally while sitting
+        camera.position.x = currentPos.x + mouseX * 0.3; // Small left-right head movement
+        camera.position.y = currentPos.y + mouseY * 0.2; // Small up-down head movement
+        
+        // Adjust look target based on mouse position for natural eye movement
+        const lookX = mouseX * 2; // Look left-right across table
+        const lookY = currentPos.y - 1.2 + mouseY * 0.5; // Look slightly up/down from table surface
+        const lookZ = -0.5 + mouseY * 0.3; // Look closer/farther on table
+        
+        camera.lookAt(lookX, lookY, lookZ);
+      }
       
       renderer.render(scene, camera);
     }
