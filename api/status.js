@@ -102,18 +102,22 @@ function escapeHtml(str) {
 function generateStatusHTML(latest, stats, history) {
   // Calculate total devices and occupancy level
   const totalDevices = Object.values(latest?.data || {}).reduce((sum, count) => sum + count, 0);
-  const estimatedOccupancy = Math.round(totalDevices * 0.7);
+  const estimatedPeople = Math.round(totalDevices * 0.7);
   
-  // Determine occupancy level and colors
-  const getOccupancyLevel = (count) => {
-    if (count === 0) return { color: '#8b5cf6', percentage: 0 };
-    if (count <= 15) return { color: '#10b981', percentage: 25 };
-    if (count <= 35) return { color: '#f59e0b', percentage: 50 };
-    if (count <= 60) return { color: '#ef4444', percentage: 75 };
-    return { color: '#dc2626', percentage: 100 };
+  // Assume max capacity of 100 people for percentage calculation
+  const maxCapacity = 100;
+  const occupancyPercentage = Math.min(100, Math.round((estimatedPeople / maxCapacity) * 100));
+  
+  // Determine occupancy level and colors based on percentage
+  const getOccupancyLevel = (percentage) => {
+    if (percentage === 0) return { color: '#8b5cf6', gaugePercentage: 0 };
+    if (percentage <= 25) return { color: '#10b981', gaugePercentage: 25 };
+    if (percentage <= 50) return { color: '#f59e0b', gaugePercentage: 50 };
+    if (percentage <= 75) return { color: '#ef4444', gaugePercentage: 75 };
+    return { color: '#dc2626', gaugePercentage: 100 };
   };
   
-  const occupancy = getOccupancyLevel(estimatedOccupancy);
+  const occupancy = getOccupancyLevel(occupancyPercentage);
   
   // Format relative time
   const formatRelativeTime = (timestamp) => {
@@ -134,10 +138,23 @@ function generateStatusHTML(latest, stats, history) {
     const diffMs = now - date;
     const diffSeconds = Math.floor(diffMs / 1000);
     const diffMinutes = Math.floor(diffSeconds / 60);
+    const diffHours = Math.floor(diffMinutes / 60);
+    const diffDays = Math.floor(diffHours / 24);
     
-    if (diffSeconds < 60) return `Updated ${diffSeconds}s ago`;
-    if (diffMinutes < 60) return `Updated ${diffMinutes}m ago`;
-    return `Updated ${Math.floor(diffMinutes / 60)}h ago`;
+    if (diffSeconds < 60) {
+      const seconds = diffSeconds === 1 ? 'second' : 'seconds';
+      return `Updated ${diffSeconds} ${seconds} ago`;
+    }
+    if (diffMinutes < 60) {
+      const minutes = diffMinutes === 1 ? 'minute' : 'minutes';
+      return `Updated ${diffMinutes} ${minutes} ago`;
+    }
+    if (diffHours < 24) {
+      const hours = diffHours === 1 ? 'hour' : 'hours';
+      return `Updated ${diffHours} ${hours} ago`;
+    }
+    const days = diffDays === 1 ? 'day' : 'days';
+    return `Updated ${diffDays} ${days} ago`;
   };
   
   return `
@@ -156,9 +173,9 @@ function generateStatusHTML(latest, stats, history) {
     }
     
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #000;
-      color: #fff;
+      font-family: "Georgia", "Times New Roman", serif;
+      background: #1a1611;
+      color: #f4f1ea;
       height: 100vh;
       display: flex;
       align-items: center;
@@ -184,8 +201,8 @@ function generateStatusHTML(latest, stats, history) {
       border-radius: 50%;
       background: conic-gradient(
         from 135deg,
-        #333 0deg,
-        #333 270deg,
+        #3d3426 0deg,
+        #3d3426 270deg,
         transparent 270deg
       );
       position: relative;
@@ -199,8 +216,8 @@ function generateStatusHTML(latest, stats, history) {
       background: conic-gradient(
         from 135deg,
         ${occupancy.color} 0deg,
-        ${occupancy.color} ${occupancy.percentage * 2.7}deg,
-        transparent ${occupancy.percentage * 2.7}deg
+        ${occupancy.color} ${occupancy.gaugePercentage * 2.7}deg,
+        transparent ${occupancy.gaugePercentage * 2.7}deg
       );
       position: relative;
     }
@@ -212,7 +229,7 @@ function generateStatusHTML(latest, stats, history) {
       transform: translate(-50%, -50%);
       width: 200px;
       height: 200px;
-      background: #000;
+      background: #1a1611;
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -231,17 +248,19 @@ function generateStatusHTML(latest, stats, history) {
     
     .label {
       font-size: 1rem;
-      color: #888;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      font-weight: 600;
+      color: #a08c6b;
+      text-transform: lowercase;
+      letter-spacing: 0.5px;
+      font-weight: 400;
+      font-style: italic;
     }
     
     .timestamp {
       font-size: 1.1rem;
-      color: #666;
+      color: #8b7355;
       margin-top: 20px;
-      font-weight: 500;
+      font-weight: 400;
+      font-style: italic;
     }
     
     .no-data {
@@ -255,8 +274,8 @@ function generateStatusHTML(latest, stats, history) {
     .no-data .gauge-fill {
       background: conic-gradient(
         from 135deg,
-        #333 0deg,
-        #333 270deg,
+        #3d3426 0deg,
+        #3d3426 270deg,
         transparent 270deg
       );
     }
@@ -293,8 +312,8 @@ function generateStatusHTML(latest, stats, history) {
       <div class="gauge-bg">
         <div class="gauge-fill">
           <div class="gauge-inner">
-            <div class="count">${latest ? estimatedOccupancy : '—'}</div>
-            <div class="label">${latest ? 'People' : 'No Data'}</div>
+            <div class="count">${latest ? occupancyPercentage + '%' : '—'}</div>
+            <div class="label">${latest ? 'Capacity' : 'No Data'}</div>
           </div>
         </div>
       </div>
