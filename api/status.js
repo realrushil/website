@@ -677,19 +677,22 @@ function generateStatusHTML(latest, stats, history) {
         if (libraryTableModel) {
           tableInstance = libraryTableModel.clone();
           
-          // Get bounding box to understand table dimensions
+          // Get bounding box to understand table dimensions and center
           const box = new THREE.Box3().setFromObject(tableInstance);
           const size = box.getSize(new THREE.Vector3());
           const center = box.getCenter(new THREE.Vector3());
           
           console.log('Table dimensions:', size);
-          console.log('Table center:', center);
+          console.log('Table original center offset:', center);
           console.log('Table min:', box.min);
           console.log('Table max:', box.max);
           
-          // Set initial position and scale
-          tableInstance.scale.set(1, 1, 1);
-          tableInstance.position.set(0, 0, 0);
+          // Automatically center the table by offsetting its position
+          // This compensates for any offset in the model's pivot point
+          tableInstance.position.set(-center.x, -center.y, -center.z);
+          
+          console.log('Table position adjusted to center it:', tableInstance.position);
+          console.log('Table should now be properly centered at world origin');
           
           scene.add(tableInstance);
           
