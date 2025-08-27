@@ -333,77 +333,71 @@ function generateStatusHTML(latest, stats, history) {
     function createBook(width, height, depth, spineColor, coverColor) {
       const book = new THREE.Group();
       
-      // Main book body (cover)
-      const coverGeometry = new THREE.BoxGeometry(width, height, depth);
-      const coverMaterial = new THREE.MeshLambertMaterial({ color: coverColor });
-      const cover = new THREE.Mesh(coverGeometry, coverMaterial);
-      cover.castShadow = true;
-      cover.receiveShadow = true;
-      book.add(cover);
-      
-      // Book spine (slightly different color)
-      const spineGeometry = new THREE.BoxGeometry(width * 0.95, height * 0.95, depth * 1.02);
-      const spineMaterial = new THREE.MeshLambertMaterial({ color: spineColor });
-      const spine = new THREE.Mesh(spineGeometry, spineMaterial);
-      spine.position.z = depth * 0.01;
-      book.add(spine);
-      
-      // Pages - visible from the front edge of the book
-      const pagesGeometry = new THREE.BoxGeometry(width * 0.85, height * 0.9, depth * 0.92);
+      // Pages FIRST - make them the full size and position them centered
+      const pagesGeometry = new THREE.BoxGeometry(width, height, depth);
       const pagesMaterial = new THREE.MeshLambertMaterial({ color: 0xf8f8f0 }); // Off-white pages
       const pages = new THREE.Mesh(pagesGeometry, pagesMaterial);
-      pages.position.set(width * 0.05, 0, 0); // Move pages toward front edge
       pages.castShadow = true;
       pages.receiveShadow = true;
       book.add(pages);
       
-      // Page edge visible from the front (right side of book)
-      const frontPagesGeometry = new THREE.BoxGeometry(width * 0.03, height * 0.88, depth * 0.9);
-      const frontPagesMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff }); // Pure white edge
+      // Front edge of pages (pure white)
+      const frontPagesGeometry = new THREE.BoxGeometry(width * 0.02, height, depth * 0.98);
+      const frontPagesMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
       const frontPages = new THREE.Mesh(frontPagesGeometry, frontPagesMaterial);
-      frontPages.position.set(width * 0.47, 0, 0); // Position at the very front edge
-      frontPages.castShadow = true;
+      frontPages.position.set(width * 0.49, 0, 0);
       book.add(frontPages);
       
+      // Cover - SMALLER than pages so pages stick out
+      const coverGeometry = new THREE.BoxGeometry(width * 0.95, height * 0.96, depth * 0.06);
+      const coverMaterial = new THREE.MeshLambertMaterial({ color: coverColor });
+      const cover = new THREE.Mesh(coverGeometry, coverMaterial);
+      cover.position.set(-width * 0.02, 0, depth * 0.47); // Position cover on back
+      cover.castShadow = true;
+      cover.receiveShadow = true;
+      book.add(cover);
+      
+      // Back cover
+      const backCoverGeometry = new THREE.BoxGeometry(width * 0.95, height * 0.96, depth * 0.06);
+      const backCoverMaterial = new THREE.MeshLambertMaterial({ color: coverColor });
+      const backCover = new THREE.Mesh(backCoverGeometry, backCoverMaterial);
+      backCover.position.set(-width * 0.02, 0, -depth * 0.47); // Position cover on front
+      backCover.castShadow = true;
+      book.add(backCover);
+      
+      // Book spine - connects the covers
+      const spineGeometry = new THREE.BoxGeometry(width * 0.08, height * 0.96, depth * 0.94);
+      const spineMaterial = new THREE.MeshLambertMaterial({ color: spineColor });
+      const spine = new THREE.Mesh(spineGeometry, spineMaterial);
+      spine.position.set(-width * 0.46, 0, 0); // Position spine on left side
+      spine.castShadow = true;
+      book.add(spine);
+      
       // Individual page lines for realistic stack effect
-      for (let i = 0; i < 3; i++) {
-        const lineGeometry = new THREE.BoxGeometry(width * 0.025, height * 0.005, depth * 0.88);
+      for (let i = 0; i < 4; i++) {
+        const lineGeometry = new THREE.BoxGeometry(width * 0.015, height * 0.98, depth * 0.002);
         const lineMaterial = new THREE.MeshLambertMaterial({ 
-          color: 0xe8e8e8,
+          color: 0xe0e0e0,
           transparent: true,
-          opacity: 0.7
+          opacity: 0.6
         });
         const line = new THREE.Mesh(lineGeometry, lineMaterial);
         line.position.set(
-          width * 0.46, 
-          height * (0.3 - i * 0.3), 
-          0
+          width * (0.45 - i * 0.05), 
+          0, 
+          (Math.random() - 0.5) * depth * 0.1
         );
         book.add(line);
       }
       
-      // Book title area (darker rectangle on spine)
-      const titleGeometry = new THREE.BoxGeometry(width * 0.8, height * 0.3, depth * 1.03);
+      // Book title area on spine
+      const titleGeometry = new THREE.BoxGeometry(width * 0.06, height * 0.4, depth * 0.6);
       const titleMaterial = new THREE.MeshLambertMaterial({ 
         color: new THREE.Color(spineColor).multiplyScalar(0.7) 
       });
       const title = new THREE.Mesh(titleGeometry, titleMaterial);
-      title.position.y = height * 0.2;
-      title.position.z = depth * 0.015;
+      title.position.set(-width * 0.47, height * 0.1, 0);
       book.add(title);
-      
-      // Add some wear/variation with a subtle overlay
-      const wearGeometry = new THREE.BoxGeometry(width * 0.3, height * 0.1, depth * 1.04);
-      const wearMaterial = new THREE.MeshLambertMaterial({ 
-        color: new THREE.Color(coverColor).multiplyScalar(0.8),
-        transparent: true,
-        opacity: 0.6
-      });
-      const wear = new THREE.Mesh(wearGeometry, wearMaterial);
-      wear.position.y = -height * 0.3;
-      wear.position.x = width * 0.1;
-      wear.position.z = depth * 0.02;
-      book.add(wear);
       
       return book;
     }
