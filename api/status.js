@@ -317,18 +317,101 @@ function generateStatusHTML(latest, stats, history) {
     renderer.setClearColor(0x1a1611);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    
+    // Improve color rendering
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
     document.getElementById('three-container').appendChild(renderer.domElement);
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0x8b7355, 0.4);
+    // Dynamic lighting based on time of day
+    function getTimeBasedLighting() {
+      const now = new Date();
+      const hour = now.getHours();
+      
+      // Define lighting scenarios
+      let ambientColor, ambientIntensity, sunColor, sunIntensity, sunPosition;
+      
+      if (hour >= 6 && hour < 8) {
+        // Early morning - soft golden light
+        ambientColor = 0xffffff;
+        ambientIntensity = 0.3;
+        sunColor = 0xffd4a6;
+        sunIntensity = 0.7;
+        sunPosition = [8, 4, 8];
+      } else if (hour >= 8 && hour < 12) {
+        // Morning - bright white light
+        ambientColor = 0xffffff;
+        ambientIntensity = 0.4;
+        sunColor = 0xffffff;
+        sunIntensity = 0.9;
+        sunPosition = [6, 10, 6];
+      } else if (hour >= 12 && hour < 17) {
+        // Afternoon - bright neutral light
+        ambientColor = 0xffffff;
+        ambientIntensity = 0.5;
+        sunColor = 0xffffff;
+        sunIntensity = 1.0;
+        sunPosition = [4, 12, 4];
+      } else if (hour >= 17 && hour < 19) {
+        // Late afternoon - warm light
+        ambientColor = 0xffffff;
+        ambientIntensity = 0.4;
+        sunColor = 0xffcc99;
+        sunIntensity = 0.8;
+        sunPosition = [8, 6, 8];
+      } else if (hour >= 19 && hour < 21) {
+        // Evening - golden hour
+        ambientColor = 0xffffff;
+        ambientIntensity = 0.3;
+        sunColor = 0xff9966;
+        sunIntensity = 0.6;
+        sunPosition = [10, 3, 10];
+      } else {
+        // Night - warm indoor lighting
+        ambientColor = 0xffffff;
+        ambientIntensity = 0.2;
+        sunColor = 0xffaa66;
+        sunIntensity = 0.4;
+        sunPosition = [5, 8, 5];
+      }
+      
+      return { ambientColor, ambientIntensity, sunColor, sunIntensity, sunPosition };
+    }
+    
+    // Set up lighting
+    const lighting = getTimeBasedLighting();
+    
+    // Update background color based on time
+    const hour = new Date().getHours();
+    let backgroundColor;
+    if (hour >= 6 && hour < 19) {
+      backgroundColor = 0x2a2520; // Lighter brown for daytime
+    } else {
+      backgroundColor = 0x1a1611; // Darker brown for evening/night
+    }
+    renderer.setClearColor(backgroundColor);
+    
+    const ambientLight = new THREE.AmbientLight(lighting.ambientColor, lighting.ambientIntensity);
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xf4f1ea, 0.8);
-    directionalLight.position.set(5, 10, 5);
+    const directionalLight = new THREE.DirectionalLight(lighting.sunColor, lighting.sunIntensity);
+    directionalLight.position.set(...lighting.sunPosition);
     directionalLight.castShadow = true;
     directionalLight.shadow.mapSize.width = 2048;
     directionalLight.shadow.mapSize.height = 2048;
+    directionalLight.shadow.camera.near = 0.1;
+    directionalLight.shadow.camera.far = 50;
+    directionalLight.shadow.camera.left = -15;
+    directionalLight.shadow.camera.right = 15;
+    directionalLight.shadow.camera.top = 15;
+    directionalLight.shadow.camera.bottom = -15;
     scene.add(directionalLight);
+    
+    // Add a subtle fill light to brighten shadows and preserve colors
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.2);
+    fillLight.position.set(-5, 5, -5);
+    scene.add(fillLight);
 
     // Load GLB book stack asset
     const loader = new THREE.GLTFLoader();
