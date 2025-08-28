@@ -311,8 +311,17 @@ function generateStatusHTML(latest, stats, history) {
 
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-  <script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module">
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    
     // Scene setup
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -418,16 +427,18 @@ function generateStatusHTML(latest, stats, history) {
     scene.add(fillLight);
 
     // Load GLB assets
-    const loader = new THREE.GLTFLoader();
+    const loader = new GLTFLoader();
     let bookStackModel = null;
     let libraryTableModel = null;
     let tableInstance = null; // Store reference to the table in the scene
     
     function loadBookStack() {
       return new Promise((resolve, reject) => {
+        console.log('Attempting to load book stack from: /assets/book_stack.glb');
         loader.load(
           '/assets/book_stack.glb',
           function (gltf) {
+            console.log('Book stack GLB loaded successfully:', gltf);
             bookStackModel = gltf.scene;
             
             // Enable shadows for all meshes in the model
@@ -435,14 +446,15 @@ function generateStatusHTML(latest, stats, history) {
               if (child.isMesh) {
                 child.castShadow = true;
                 child.receiveShadow = true;
+                console.log('Book stack mesh found:', child.name, child.material);
               }
             });
             
-            console.log('Book stack model loaded successfully');
+            console.log('Book stack model processed successfully');
             resolve(bookStackModel);
           },
           function (progress) {
-            console.log('Loading progress:', (progress.loaded / progress.total * 100) + '%');
+            console.log('Loading book stack progress:', (progress.loaded / progress.total * 100) + '%');
           },
           function (error) {
             console.error('Error loading book stack model:', error);
@@ -454,9 +466,11 @@ function generateStatusHTML(latest, stats, history) {
     
     function loadLibraryTable() {
       return new Promise((resolve, reject) => {
+        console.log('Attempting to load table from: /assets/library_table_with_studio_lights.glb');
         loader.load(
           '/assets/library_table_with_studio_lights.glb',
           function (gltf) {
+            console.log('Table GLB loaded successfully:', gltf);
             libraryTableModel = gltf.scene;
             
             // Enable shadows for all meshes in the model
@@ -464,10 +478,11 @@ function generateStatusHTML(latest, stats, history) {
               if (child.isMesh) {
                 child.castShadow = true;
                 child.receiveShadow = true;
+                console.log('Table mesh found:', child.name, child.material);
               }
             });
             
-            console.log('Library table model loaded successfully');
+            console.log('Library table model processed successfully');
             resolve(libraryTableModel);
           },
           function (progress) {
@@ -481,11 +496,43 @@ function generateStatusHTML(latest, stats, history) {
       });
     }
 
+    // Create fallback books if GLB doesn't load
+    function createFallbackBooks(x, side, tableSurfaceY = 0) {
+      const shelf = new THREE.Group();
+      
+      // Create simple book geometry as fallback
+      for (let i = 0; i < 5; i++) {
+        const bookWidth = 0.15 + Math.random() * 0.1;
+        const bookHeight = 1.2 + Math.random() * 0.3;
+        const bookDepth = 0.8 + Math.random() * 0.2;
+        
+        const bookGeometry = new THREE.BoxGeometry(bookWidth, bookHeight, bookDepth);
+        const bookColor = new THREE.Color().setHSL(Math.random(), 0.7, 0.5);
+        const bookMaterial = new THREE.MeshLambertMaterial({ color: bookColor });
+        const book = new THREE.Mesh(bookGeometry, bookMaterial);
+        
+        book.position.set(
+          x + (i - 2.5) * 0.2,
+          tableSurfaceY + bookHeight / 2,
+          (Math.random() - 0.5) * 0.3
+        );
+        book.rotation.y = (Math.random() - 0.5) * 0.3;
+        
+        book.castShadow = true;
+        book.receiveShadow = true;
+        shelf.add(book);
+      }
+      
+      console.log('Created fallback books for', side, 'side');
+      return shelf;
+    }
+
     function createBookshelf(x, side, tableSurfaceY = 0) {
       const shelf = new THREE.Group();
       
-      // Add book stack model if loaded (no shelf base needed)
+      // Add book stack model if loaded
       if (bookStackModel) {
+        console.log('Using GLB book stack model for', side, 'side');
         const bookStack = bookStackModel.clone();
         
         // Get bounding box to understand book stack dimensions
@@ -497,12 +544,12 @@ function generateStatusHTML(latest, stats, history) {
         console.log('Book stack ' + side + ' original center:', center);
         
         // Calculate proper positioning
-        // Center the book stack horizontally and depth-wise, but position it on the table surface
-        const bookStackY = tableSurfaceY - center.y + (size.y / 2);
+        // Put books directly on the table surface
+        const bookStackY = tableSurfaceY;
         
         // Scale and position the book stack appropriately
-        bookStack.scale.set(1, 1, 1); // Standard scale
-        bookStack.position.set(x - center.x, bookStackY, 0 - center.z); // Position relative to table
+        bookStack.scale.set(0.5, 0.5, 0.5); // Scale down a bit
+        bookStack.position.set(x, bookStackY, 0); // Position on table
         
         // Add slight random rotation for variation
         bookStack.rotation.y = (Math.random() - 0.5) * 0.3;
@@ -510,12 +557,15 @@ function generateStatusHTML(latest, stats, history) {
         console.log('Book stack ' + side + ' positioned at:', bookStack.position);
         console.log('Book stack ' + side + ' should sit on table surface at Y =', tableSurfaceY);
         shelf.add(bookStack);
+      } else {
+        console.log('GLB book model not available, using fallback for', side, 'side');
+        // Use fallback books
+        const fallbackShelf = createFallbackBooks(x, side, tableSurfaceY);
+        shelf.add(fallbackShelf);
       }
 
       return shelf;
     }
-
-
 
     // Create laptop
     function createLaptop() {
@@ -549,18 +599,27 @@ function generateStatusHTML(latest, stats, history) {
       return laptop;
     }
 
-    // Library table will be loaded from GLB asset instead of manual creation
-
     // Initialize scene and load assets
     async function initScene() {
       try {
+        console.log('Starting scene initialization...');
+        
         // Load both assets simultaneously
         await Promise.all([
-          loadBookStack(),
-          loadLibraryTable()
+          loadBookStack().catch(err => {
+            console.warn('Book stack failed to load, will use fallback:', err);
+            return null;
+          }),
+          loadLibraryTable().catch(err => {
+            console.warn('Table failed to load, will use fallback:', err);
+            return null;
+          })
         ]);
         
-        // Add library table
+        console.log('Asset loading phase complete');
+        
+        // Add library table or fallback
+        let tableSurfaceY = 0;
         if (libraryTableModel) {
           tableInstance = libraryTableModel.clone();
           
@@ -571,68 +630,65 @@ function generateStatusHTML(latest, stats, history) {
           
           console.log('Table dimensions:', size);
           console.log('Table original center offset:', center);
-          console.log('Table min:', box.min);
-          console.log('Table max:', box.max);
           
-          // Automatically center the table by offsetting its position
-          // This compensates for any offset in the model's pivot point
+          // Center the table and position it at ground level
           tableInstance.position.set(-center.x, -center.y, -center.z);
           
-          console.log('Table position adjusted to center it:', tableInstance.position);
-          console.log('Table should now be properly centered at world origin');
-          
+          console.log('Table positioned at:', tableInstance.position);
           scene.add(tableInstance);
-        }
-        
-        // Calculate table surface height for book positioning
-        let tableSurfaceY = 0;
-        if (tableInstance) {
+          
+          // Calculate table surface height
           const tableBox = new THREE.Box3().setFromObject(tableInstance);
-          const tableSize = tableBox.getSize(new THREE.Vector3());
-          tableSurfaceY = tableBox.max.y; // Top surface of the table
+          tableSurfaceY = tableBox.max.y;
           console.log('Table surface height (Y):', tableSurfaceY);
-          console.log('Table size:', tableSize);
           
-          // Position camera as if someone is sitting at the table
-          // Typical sitting eye level is about 1.2m (scaled units) above table surface
-          const sittingEyeHeight = tableSurfaceY + 1.2;
+          // Position camera for sitting view
+          camera.position.set(0, tableSurfaceY + 1.2, 3);
+          camera.lookAt(0, tableSurfaceY, 0);
+        } else {
+          // Create fallback table
+          console.log('Using fallback table geometry');
+          const tableGeometry = new THREE.BoxGeometry(4, 0.1, 2);
+          const tableMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+          const table = new THREE.Mesh(tableGeometry, tableMaterial);
+          table.position.set(0, 0, 0);
+          table.receiveShadow = true;
+          scene.add(table);
           
-          // Position camera at table edge - use table depth to determine distance
-          // Sit at the "front" of the table (negative Z direction from center)
-          const sittingDistance = tableSize.z * 0.6; // Sit at 60% of table depth from center
-          
-          camera.position.set(0, sittingEyeHeight, sittingDistance);
-          // Look slightly down at the table surface, not directly at center but at table edge
-          camera.lookAt(0, tableSurfaceY - 0.2, 0);
-          
-          console.log('Camera positioned for sitting view at:', camera.position);
+          tableSurfaceY = 0.05; // Half the table height
+          camera.position.set(0, 1.2, 3);
+          camera.lookAt(0, 0, 0);
         }
 
-        // Add bookshelves with loaded book models
-        const leftShelf = createBookshelf(-3, 'left', tableSurfaceY);
-        const rightShelf = createBookshelf(3, 'right', tableSurfaceY);
+        console.log('Adding bookshelves...');
+        
+        // Add bookshelves with loaded book models or fallbacks
+        const leftShelf = createBookshelf(-2, 'left', tableSurfaceY);
+        const rightShelf = createBookshelf(2, 'right', tableSurfaceY);
         scene.add(leftShelf);
         scene.add(rightShelf);
 
-        // Laptop temporarily removed for cleaner evaluation of assets
-        // const laptop = createLaptop();
-        // scene.add(laptop);
+        console.log('Scene setup complete');
 
-        // Hide loading and keep overlay hidden for now
+        // Hide loading and show overlay (for now keep overlay hidden)
         document.querySelector('.loading').style.display = 'none';
         document.getElementById('odometer-overlay').style.display = 'none';
         
         console.log('Scene initialized successfully');
       } catch (error) {
         console.error('Error initializing scene:', error);
-        // Fall back to showing the scene without models
+        // Fall back to basic scene
         document.querySelector('.loading').style.display = 'none';
         document.getElementById('odometer-overlay').style.display = 'none';
+        
+        // Create minimal fallback scene
+        const fallbackGeometry = new THREE.BoxGeometry(1, 1, 1);
+        const fallbackMaterial = new THREE.MeshLambertMaterial({ color: 0xff0000 });
+        const fallbackMesh = new THREE.Mesh(fallbackGeometry, fallbackMaterial);
+        scene.add(fallbackMesh);
+        camera.position.set(0, 1, 3);
       }
     }
-
-    // Position camera as if someone is sitting at the table
-    // We'll set this properly after the table loads and we know its dimensions
 
     // Mouse interaction
     let mouseX = 0;
@@ -647,18 +703,17 @@ function generateStatusHTML(latest, stats, history) {
       requestAnimationFrame(animate);
       
       // Natural head movement for sitting perspective
-      // Only move if camera has been positioned (after table loads)
-      if (camera.position.y > 1) { // Check if camera has been positioned
+      if (camera.position.y > 1) {
         const currentPos = camera.position.clone();
         
-        // Subtle head movements - look around naturally while sitting
-        camera.position.x = currentPos.x + mouseX * 0.3; // Small left-right head movement
-        camera.position.y = currentPos.y + mouseY * 0.2; // Small up-down head movement
+        // Subtle head movements
+        camera.position.x = currentPos.x + mouseX * 0.2;
+        camera.position.y = currentPos.y + mouseY * 0.1;
         
-        // Adjust look target based on mouse position for natural eye movement
-        const lookX = mouseX * 2; // Look left-right across table
-        const lookY = currentPos.y - 1.2 + mouseY * 0.5; // Look slightly up/down from table surface
-        const lookZ = -0.5 + mouseY * 0.3; // Look closer/farther on table
+        // Look target adjustment
+        const lookX = mouseX * 1;
+        const lookY = currentPos.y - 1.2 + mouseY * 0.3;
+        const lookZ = mouseY * 0.2;
         
         camera.lookAt(lookX, lookY, lookZ);
       }
